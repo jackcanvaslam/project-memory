@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "localflow"
+version = "0.1.0"
+description = "Local, open-source Wispr Flow clone for Windows 11 (push-to-talk dictation with faster-whisper + Ollama cleanup)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "faster-whisper>=1.0",
+    "sounddevice>=0.4",
+    "numpy>=1.24",
+    "pynput>=1.7",
+    "pyperclip>=1.8",
+    "requests>=2.31",
+    "pystray>=0.19",
+    "Pillow>=10.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+localflow = "localflow.__main__:main"
+
+[tool.setuptools]
+packages = ["localflow"]

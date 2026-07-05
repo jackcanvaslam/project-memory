@@ -14,6 +14,7 @@ from .commands import match_command
 from .config import Config
 from .hotkeys import PushToTalk
 from .inject import Injector
+from .stats import StatsTracker
 from .transcriber import Transcriber
 from .tray import Tray
 from .window import active_window_title
@@ -28,14 +29,21 @@ _SPECIAL_KEYS = {
 
 
 class LocalFlowApp:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, config_path: str | None = None):
         self.cfg = cfg
         self.recorder = Recorder(cfg.audio)
         self.transcriber = Transcriber(cfg.stt, cfg.dictionary)
         self.cleaner = Cleaner(cfg.cleanup, cfg.dictionary)
         self.injector = Injector(cfg.injection)
         self.keyboard = Controller()
-        self.tray = Tray(on_quit=self.quit)
+        self.stats = StatsTracker()
+        self.tray = Tray(
+            on_quit=self.quit,
+            on_toggle_cleanup=self._toggle_cleanup,
+            cleanup_enabled=lambda: self.cfg.cleanup.enabled,
+            stats_text=self.stats.summary,
+            config_path=config_path,
+        )
         self.hotkey = PushToTalk(
             cfg.hotkey, self._on_hotkey_down, self._on_hotkey_up
         )
@@ -51,7 +59,11 @@ class LocalFlowApp:
             threading.Thread(target=self.cleaner.warm_up, daemon=True).start()
         self.tray.set_state("idle")
         self.hotkey.start()
-        log.info("ready — hold %s to dictate", self.cfg.hotkey)
+        log.info(
+            "ready — %s %s to dictate",
+            "hold" if self.cfg.mode == "hold" else "press",
+            self.cfg.hotkey,
+        )
         try:
             while not self._stop.wait(0.5):
                 pass
@@ -64,9 +76,18 @@ class LocalFlowApp:
     def quit(self) -> None:
         self._stop.set()
 
+    def _toggle_cleanup(self) -> None:
+        self.cfg.cleanup.enabled = not self.cfg.cleanup.enabled
+        log.info("AI cleanup %s", "on" if self.cfg.cleanup.enabled else "off")
+        if self.cfg.cleanup.enabled:
+            threading.Thread(target=self.cleaner.warm_up, daemon=True).start()
+
     # -- hotkey callbacks (must return fast; pynput thread) -----------------
 
     def _on_hotkey_down(self) -> None:
+        if self.cfg.mode == "toggle" and self.recorder.recording:
+            self._finish_recording()
+            return
         try:
             self.recorder.start()
             self.tray.set_state("listening")
@@ -75,6 +96,11 @@ class LocalFlowApp:
             self.tray.set_state("error", str(e))
 
     def _on_hotkey_up(self) -> None:
+        if self.cfg.mode == "toggle":
+            return  # toggle mode stops on the next press, not on release
+        self._finish_recording()
+
+    def _finish_recording(self) -> None:
         if not self.recorder.recording:
             return
         audio = self.recorder.stop()
@@ -99,7 +125,13 @@ class LocalFlowApp:
             title = active_window_title()
             cleaned = self.cleaner.clean(transcript, title)
             self.injector.inject(cleaned)
-            log.info("end-to-end %.2fs", time.perf_counter() - t0)
+            latency = time.perf_counter() - t0
+            self.stats.record(
+                cleaned,
+                audio_seconds=len(audio) / self.cfg.audio.sample_rate,
+                latency_seconds=latency,
+            )
+            log.info("end-to-end %.2fs", latency)
         except Exception as e:  # noqa: BLE001 - never crash the app loop
             log.exception("pipeline failed: %s", e)
             self.tray.set_state("error", str(e)[:60])

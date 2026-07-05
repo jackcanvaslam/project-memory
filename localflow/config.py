@@ -36,6 +36,11 @@ class CleanupConfig:
     timeout_s: float = 15.0
     keep_alive: str = "5m"  # Ollama default idle unload; -1 = never unload
     app_tone: bool = True  # feed active window title into the prompt
+    # Per-app tone profiles: first entry whose "match" appears in the
+    # active window title (case-insensitive) wins.
+    # Example: [{"match": "slack", "tone": "casual"},
+    #           {"match": "outlook", "tone": "professional"}]
+    app_profiles: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -55,6 +60,7 @@ class AudioConfig:
 @dataclass
 class Config:
     hotkey: str = "ctrl+win"
+    mode: str = "hold"  # "hold" = push-to-talk; "toggle" = press to start/stop
     stt: SttConfig = field(default_factory=SttConfig)
     cleanup: CleanupConfig = field(default_factory=CleanupConfig)
     injection: InjectionConfig = field(default_factory=InjectionConfig)
@@ -88,6 +94,8 @@ class Config:
                 setattr(cfg, section, section_cls(**known))
         if isinstance(raw.get("hotkey"), str):
             cfg.hotkey = raw["hotkey"]
+        if raw.get("mode") in ("hold", "toggle"):
+            cfg.mode = raw["mode"]
         if isinstance(raw.get("dictionary"), list):
             cfg.dictionary = [str(t) for t in raw["dictionary"]]
         if isinstance(raw.get("commands_enabled"), bool):

@@ -1,4 +1,4 @@
-from localflow.cleanup import build_prompt, parse_response
+from localflow.cleanup import build_prompt, match_profile, parse_response
 
 
 def test_prompt_contains_text_and_examples():
@@ -18,6 +18,24 @@ def test_prompt_window_title_tone():
     p = build_prompt("hi", window_title="Inbox - Outlook")
     assert "Inbox - Outlook" in p
     assert "Outlook" not in build_prompt("hi")
+
+
+def test_match_profile():
+    profiles = [
+        {"match": "slack", "tone": "casual"},
+        {"match": "outlook", "tone": "professional"},
+    ]
+    assert match_profile("general - Slack", profiles) == "casual"
+    assert match_profile("Inbox - Outlook", profiles) == "professional"
+    assert match_profile("Notepad", profiles) is None
+    assert match_profile(None, profiles) is None
+    assert match_profile("Slack", []) is None
+
+
+def test_prompt_profile_tone_overrides_title_rule():
+    p = build_prompt("hi team", window_title="general - Slack", tone="casual")
+    assert "casual tone" in p
+    assert "window titled" not in p
 
 
 def test_parse_response_strips_artifacts():

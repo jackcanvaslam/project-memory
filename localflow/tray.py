@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import logging
+import os
+import subprocess
+import sys
 import threading
 from typing import Callable
 
 import pystray
 from PIL import Image, ImageDraw
+
+log = logging.getLogger(__name__)
 
 STATE_COLORS = {
     "idle": (110, 110, 110),
@@ -27,16 +33,50 @@ def _make_icon(color: tuple[int, int, int]) -> Image.Image:
     return img
 
 
+def _open_file(path: str) -> None:
+    if sys.platform == "win32":
+        os.startfile(path)  # noqa: S606
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
+
+
 class Tray:
-    def __init__(self, on_quit: Callable[[], None]):
+    def __init__(
+        self,
+        on_quit: Callable[[], None],
+        on_toggle_cleanup: Callable[[], None] | None = None,
+        cleanup_enabled: Callable[[], bool] | None = None,
+        stats_text: Callable[[], str] | None = None,
+        config_path: str | None = None,
+    ):
         self._icons = {state: _make_icon(c) for state, c in STATE_COLORS.items()}
+        items = []
+        if stats_text is not None:
+            items.append(
+                pystray.MenuItem(lambda item: stats_text(), None, enabled=False)
+            )
+        if on_toggle_cleanup is not None:
+            items.append(
+                pystray.MenuItem(
+                    "AI cleanup",
+                    lambda: on_toggle_cleanup(),
+                    checked=(lambda item: cleanup_enabled())
+                    if cleanup_enabled
+                    else None,
+                )
+            )
+        if config_path is not None:
+            items.append(
+                pystray.MenuItem("Open config", lambda: _open_file(config_path))
+            )
+        items.append(pystray.MenuItem("Quit", lambda: on_quit()))
         self.icon = pystray.Icon(
             "LocalFlow",
             self._icons["idle"],
             "LocalFlow — idle",
-            menu=pystray.Menu(
-                pystray.MenuItem("Quit", lambda: on_quit()),
-            ),
+            menu=pystray.Menu(*items),
         )
 
     def set_state(self, state: str, detail: str = "") -> None:

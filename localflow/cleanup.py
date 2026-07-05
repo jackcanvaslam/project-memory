@@ -31,10 +31,26 @@ INPUT:   {text}
 CLEANED:"""
 
 
+def match_profile(
+    window_title: str | None, app_profiles: list[dict]
+) -> str | None:
+    """Return the tone of the first profile whose "match" substring
+    appears in the window title (case-insensitive)."""
+    if not window_title:
+        return None
+    lowered = window_title.lower()
+    for profile in app_profiles:
+        needle = str(profile.get("match", "")).lower()
+        if needle and needle in lowered:
+            return str(profile.get("tone", "")) or None
+    return None
+
+
 def build_prompt(
     text: str,
     dictionary: list[str] | None = None,
     window_title: str | None = None,
+    tone: str | None = None,
 ) -> str:
     dictionary_rule = ""
     if dictionary:
@@ -42,7 +58,13 @@ def build_prompt(
             "- Preserve these terms EXACTLY: " + ", ".join(dictionary) + "\n"
         )
     tone_rule = ""
-    if window_title:
+    if tone:
+        tone_rule = (
+            f"- The user is dictating into an app where a {tone} tone is "
+            "expected; adjust punctuation and capitalization style "
+            "accordingly, but do not add or remove content.\n"
+        )
+    elif window_title:
         tone_rule = (
             f'- The text will be typed into a window titled "{window_title}"; '
             "keep punctuation style appropriate for that context.\n"
@@ -89,10 +111,12 @@ class Cleaner:
             return ""
         if not self.cfg.enabled:
             return text
+        title = window_title if self.cfg.app_tone else None
         prompt = build_prompt(
             text,
             self.dictionary,
-            window_title if self.cfg.app_tone else None,
+            title,
+            tone=match_profile(title, self.cfg.app_profiles),
         )
         t0 = time.perf_counter()
         try:

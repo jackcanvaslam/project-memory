@@ -28,6 +28,20 @@ def test_load_missing_file_returns_defaults(tmp_path):
     assert cfg.stt.model == "small.en"
 
 
+def test_mode_and_profiles(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "mode": "toggle",
+        "cleanup": {"app_profiles": [{"match": "slack", "tone": "casual"}]},
+    }))
+    cfg = Config.load(path)
+    assert cfg.mode == "toggle"
+    assert cfg.cleanup.app_profiles == [{"match": "slack", "tone": "casual"}]
+    # invalid mode falls back to default
+    path.write_text(json.dumps({"mode": "bogus"}))
+    assert Config.load(path).mode == "hold"
+
+
 def test_unknown_keys_ignored(tmp_path):
     path = tmp_path / "config.json"
     path.write_text(json.dumps({

@@ -53,7 +53,9 @@ Administrator, run LocalFlow as Administrator too (Windows UIPI blocks injection
 Wispr Flow has the same limitation).
 
 **Usage:** hold **Ctrl+Win**, speak, release. The tray icon shows state:
-gray = idle, red = listening, orange = processing.
+gray = idle, red = listening, orange = processing. Right-click the tray icon for
+usage stats, an AI-cleanup on/off toggle, and quick access to the config file.
+Prefer press-once-to-start, press-again-to-stop? Set `"mode": "toggle"` in the config.
 
 Saying exactly "new line", "delete that", "select all", etc. executes the keystroke instead
 of typing the words (see `localflow/commands.py`).
@@ -65,12 +67,14 @@ First run writes defaults to `~\.localflow\config.json`. Notable settings:
 | Setting | Default | Notes |
 |---|---|---|
 | `hotkey` | `ctrl+win` | e.g. `ctrl+alt`, `ctrl+shift+d` |
+| `mode` | `hold` | `toggle` = press once to start, again to stop |
 | `stt.model` | `small.en` | `distil-small.en` (faster) or `distil-large-v3` (more accurate, still fits in int8) |
 | `stt.compute_type` | `int8_float32` | leave alone on GTX 16xx |
 | `cleanup.model` | `qwen2.5:3b` | `llama3.2:3b` is an equivalent alternative; never a 7B |
 | `cleanup.enabled` | `true` | `false` = raw dictation |
 | `cleanup.keep_alive` | `5m` | `-1` keeps the LLM in VRAM forever; `5m` lets Ollama free VRAM when idle |
 | `dictionary` | `[]` | terms preserved exactly, fed to both Whisper and the cleanup prompt |
+| `cleanup.app_profiles` | `[]` | per-app tone, e.g. `[{"match": "slack", "tone": "casual"}, {"match": "outlook", "tone": "professional"}]` — first title match wins |
 | `injection.method` | `clipboard` | `type` forces per-character Unicode keystrokes |
 
 ## Latency tripwires
@@ -91,8 +95,10 @@ Pure-logic tests run on any OS (no mic/GUI/GPU needed):
 pip install pytest && python -m pytest tests/
 ```
 
-Roadmap (see docs/research.md §6): Phase 3 — settings UI, stats; Phase 4 — richer per-app
-tone profiles, extended command grammar, optional Silero VAD auto-stop, live partials.
+Installable as a package too: `pip install -e .` gives you a `localflow` command.
+
+Remaining roadmap (see docs/research.md §6): extended command grammar, optional
+Silero VAD auto-stop, live partials via a tiny model, settings UI.
 
 ## Credits
 

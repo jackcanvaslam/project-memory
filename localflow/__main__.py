@@ -44,7 +44,7 @@ def main() -> None:
     if args.cpu:
         cfg.stt.device = "cpu"
 
-    LocalFlowApp(cfg).run()
+    LocalFlowApp(cfg, config_path=str(args.config)).run()
 
 
 if __name__ == "__main__":
