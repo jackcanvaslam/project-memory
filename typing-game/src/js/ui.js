@@ -33,12 +33,12 @@ const App = (() => {
     clearTimers();
     closeModal(true);
     FX.clear();
-    Scene.gems.length = 0;
+    Scene.gems.length = 0; Scene.onDraw = null; Scene.setHeat(0);
     const old = screensEl.lastElementChild;
     const el = document.createElement('div');
     el.className = 'screen scr-' + name;
     screensEl.appendChild(el);
-    if (old) { old.classList.add('leaving'); setTimeout(() => old.remove(), 250); }
+    if (old) { old.classList.add('leaving'); setTimeout(() => old.remove(), 230); }
     current = screens[name]; currentName = name;
     current.el = el;
     current.enter(el, params);
@@ -75,25 +75,33 @@ const App = (() => {
     const r = el.getBoundingClientRect(), s = stage.getBoundingClientRect();
     return { x: (r.left + r.width * ax - s.left) / scale, y: (r.top + r.height * ay - s.top) / scale };
   }
-  const mouthPos = svg => pos(svg, 0.80, 0.585);
 
-  function petSvg(cls = '', over = {}) {
+  /* a live picture of the dragon for use inside the page. over can set stage, color, trail, crest, zoom. */
+  function dv(over = {}) {
+    return `<canvas class="dv" ${Object.entries(over).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ')}></canvas>`;
+  }
+  /* the dragon as she has set it up, for drawing on the main canvas */
+  function myDragon(over = {}) {
     const S = Store.get();
-    return Art.dragon(Object.assign({ color: S.pet.color, stage: Store.stage(), wear: S.pet.wear, cls }, over));
+    return new Dragon(Object.assign({ color: S.pet.color, stage: Store.stage(), trail: S.pet.trail, crest: S.pet.crest }, over));
   }
 
-  const sysButtons = () => `<button class="btn white round" data-g="sound" aria-label="Sound">${ic(Store.get().settings.sound ? 'soundOn' : 'soundOff')}</button>
-        <button class="btn white round" data-g="full" aria-label="Full screen">${ic('full')}</button>`;
+  const sysButtons = () => {
+    const s = Store.get().settings;
+    return `<button class="btn icon" data-g="music" aria-label="Music" title="Music">${ic(s.music ? 'music' : 'musicOff')}</button>
+        <button class="btn icon" data-g="sound" aria-label="Sound effects" title="Sound effects">${ic(s.sound ? 'soundOn' : 'soundOff')}</button>
+        <button class="btn icon" data-g="full" aria-label="Full screen" title="Full screen">${ic('full')}</button>`;
+  };
 
   function hud({ back = false, title = '', sub = '' } = {}) {
     const S = Store.get();
     return `<div class="hud">
-      ${back ? `<button class="btn white round" data-act="back" aria-label="Back">${ic('back')}</button>` : ''}
+      ${back ? `<button class="btn icon" data-act="back" aria-label="Back">${ic('back')}</button>` : ''}
       <div class="hud-title">${esc(title)}${sub ? `<small>${esc(sub)}</small>` : ''}</div>
       <div class="hud-right">
-        ${S.streak.count > 1 ? `<div class="pill" title="Days in a row">${ic('flame')}<b>${S.streak.count}</b></div>` : ''}
-        <div class="pill" title="Stars">${ic('star')}<b class="star-count">${Store.totalStars()}</b></div>
-        <div class="pill coin-pill" title="Coins">${ic('coin')}<b class="coin-count">${S.coins}</b></div>
+        ${S.streak.count > 1 ? `<div class="chip" title="Days in a row">${ic('flame')}${S.streak.count}</div>` : ''}
+        <div class="chip" title="Stars">${ic('star')}<span class="star-count">${Store.totalStars()}</span></div>
+        <div class="chip" title="Shards">${ic('shard')}<span class="coin-count">${S.coins}</span></div>
         ${sysButtons()}
       </div></div>`;
   }
@@ -140,6 +148,10 @@ const App = (() => {
       S.settings.sound = !S.settings.sound; Sound.setOn(S.settings.sound); Store.save();
       $$('[data-g="sound"]').forEach(b => { b.innerHTML = ic(S.settings.sound ? 'soundOn' : 'soundOff'); });
       Sound.click();
+    } else if (g.dataset.g === 'music') {
+      S.settings.music = !S.settings.music; Sound.setMusic(S.settings.music); Store.save();
+      $$('[data-g="music"]').forEach(b => { b.innerHTML = ic(S.settings.music ? 'music' : 'musicOff'); });
+      Sound.click();
     } else if (g.dataset.g === 'full') {
       const d = document;
       if (d.fullscreenElement) { if (d.exitFullscreen) d.exitFullscreen(); }
@@ -149,8 +161,9 @@ const App = (() => {
 
   function frame(ts) {
     const dt = Math.min(0.05, (ts - last) / 1000 || 0.016); last = ts;
-    if (!current || !current.noScene) { Scene.update(dt); Scene.draw(); }
     if (current && current.tick) current.tick(dt);
+    if (!current || !current.noScene) { Scene.update(dt); Scene.draw(); }
+    DragonViews.tick(dt);
     FX.update(dt); FX.draw();
     requestAnimationFrame(frame);
   }
@@ -159,7 +172,7 @@ const App = (() => {
     stage = $('#stage'); screensEl = $('#screens'); toastEl = $('#toast');
     Scene.init($('#bg')); FX.init($('#fx'));
     const S = Store.load();
-    Sound.setOn(S.settings.sound);
+    Sound.setOn(S.settings.sound); Sound.setMusic(S.settings.music);
     fit();
     window.addEventListener('resize', fit);
     window.addEventListener('keydown', onKey);
@@ -168,6 +181,6 @@ const App = (() => {
     requestAnimationFrame(frame);
   }
 
-  return { register, go, modal, closeModal, toast, pos, mouthPos, petSvg, hud, sysButtons, countTo, refreshCoins, later, start,
+  return { register, go, modal, closeModal, toast, pos, dv, myDragon, hud, sysButtons, countTo, refreshCoins, later, start,
     get W() { return W; }, get scale() { return scale; }, get screen() { return currentName; }, get hasModal() { return !!modalEl; } };
 })();

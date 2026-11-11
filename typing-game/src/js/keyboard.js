@@ -4,7 +4,7 @@
 const Keyboard = (() => {
   const SPECIAL_FINGER = { Tab: 'L1', CapsLock: 'L1', ShiftLeft: 'L1', Backspace: 'R1', Enter: 'R1', ShiftRight: 'R1', ' ': 'T' };
   const fingerOf = k => SPECIAL_FINGER[k] || KEY_FINGER[k] || 'R1';
-  const FINGER_LABEL = { 1: 'pinky', 2: 'ring finger', 3: 'middle finger', 4: 'pointer finger' };
+  const FINGER_LABEL = { 1: 'pinky', 2: 'ring finger', 3: 'middle finger', 4: 'index finger' };
 
   function markup() {
     const rows = KEY_ROWS.map((row, r) => {
@@ -52,7 +52,7 @@ const Keyboard = (() => {
       const sel = f === 'T' ? '.fg-T' : '.fg-' + f;
       root.querySelectorAll(sel).forEach(el => { el.classList.add('use'); el.style.setProperty('--fc', Art.FINGER_COLORS[f]); });
       const sides = f === 'T' ? ['L', 'R'] : [f[0]];
-      sides.forEach(s => { const h = hints[s]; if (h) { h.textContent = text; h.style.setProperty('--fc', Art.shade(Art.FINGER_COLORS[f], -0.22)); h.classList.add('show'); } });
+      sides.forEach(s => { const h = hints[s]; if (h) { h.textContent = text; h.style.setProperty('--fc', Art.FINGER_COLORS[f]); h.classList.add('show'); } });
     }
     function target(ch) {
       clear();
@@ -64,7 +64,7 @@ const Keyboard = (() => {
       if (p.shiftKey) {
         const s = keyEls[p.shiftKey];
         if (s) { s.classList.add('target'); targets.push(s); }
-        useFinger(p.shiftFinger, 'pinky holds Shift');
+        useFinger(p.shiftFinger, 'pinky on Shift');
       }
     }
     function setLearned(keys) {

@@ -8,10 +8,10 @@ const Store = (() => {
 
   const fresh = () => ({
     v: 1, kid: '', hatched: false,
-    pet: { name: '', color: 'emerald', wear: [], hearts: 3, lastCare: today() },
-    coins: 0, levels: {}, owned: {}, food: {}, friends: [], seenStage: 0,
+    pet: { name: '', color: 'emerald', trail: 'spark', crest: 'horns' },
+    coins: 0, levels: {}, owned: {}, seenStage: 0,
     keys: {}, history: [], streak: { count: 0, last: '' }, totalSecs: 0,
-    settings: { sound: true, unlockAll: false }, mini: { best: 0, plays: 0 },
+    settings: { sound: true, music: true, unlockAll: false }, mini: { best: 0, plays: 0 },
   });
 
   let S = fresh();
@@ -25,15 +25,30 @@ const Store = (() => {
       S.settings = Object.assign(fresh().settings, S.settings);
       S.mini = Object.assign(fresh().mini, S.mini);
     } catch (e) { memoryOnly = true; }
-    // Hearts drift down one per day away, never below 1
-    const away = S.pet.lastCare ? dayDiff(S.pet.lastCare, today()) : 0;
-    if (away > 0) { S.pet.hearts = Math.max(1, S.pet.hearts - away); S.pet.lastCare = today(); }
+    // tidy up saves from the first version of the game
+    if (!DRAGON_COLORS[S.pet.color]) S.pet.color = 'emerald';
+    if (!TRAILS[S.pet.trail]) S.pet.trail = 'spark';
+    if (!CRESTS[S.pet.crest]) S.pet.crest = 'horns';
+    delete S.pet.wear; delete S.pet.hearts; delete S.pet.lastCare; delete S.food; delete S.friends;
+    grantRewards();
     return S;
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { memoryOnly = true; }
   }
   function reset() { S = fresh(); save(); return S; }
+
+  /* what she owns: skins, trails and crests */
+  const ownKey = (kind, id) => ({ skin: 'c-', trail: 't-', crest: 'h-' })[kind] + id;
+  const priceOf = (kind, id) => ({ skin: DRAGON_COLORS, trail: TRAILS, crest: CRESTS })[kind][id].price;
+  const owns = (kind, id) => priceOf(kind, id) === 0 || !!S.owned[ownKey(kind, id)];
+  const give = (kind, id) => { S.owned[ownKey(kind, id)] = true; };
+  /* finishing a world wins its reward, including for saves made before rewards existed */
+  function grantRewards() {
+    const won = [];
+    for (const w of WORLDS) if (worldDone(w.id) && !owns(w.reward.kind, w.reward.id)) { give(w.reward.kind, w.reward.id); won.push(w); }
+    return won;
+  }
 
   const get = () => S;
   const totalStars = () => Object.values(S.levels).reduce((t, l) => t + (l.stars || 0), 0);
@@ -86,5 +101,5 @@ const Store = (() => {
   function addCoins(n) { S.coins = Math.max(0, S.coins + n); }
 
   return { load, save, reset, get, totalStars, stage, levelStars, worldLevels, worldDone, worldOpen, levelOpen,
-    nextLevel, highestIndex, weakKeys, noteKey, touchStreak, addCoins, today, isMemoryOnly: () => memoryOnly };
+    nextLevel, highestIndex, weakKeys, noteKey, touchStreak, addCoins, today, owns, give, ownKey, priceOf, grantRewards, isMemoryOnly: () => memoryOnly };
 })();

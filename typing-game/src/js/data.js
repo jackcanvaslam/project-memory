@@ -2,11 +2,11 @@
 'use strict';
 
 const WORLDS = [
-  { id: 1, name: 'Sunny Meadow',   theme: 'meadow', skill: 'Home row',                 friend: 'bunny' },
-  { id: 2, name: 'Sky Peaks',      theme: 'peaks',  skill: 'Top row',                  friend: 'fox' },
-  { id: 3, name: 'Crystal Cave',   theme: 'cave',   skill: 'Bottom row',               friend: 'kitten' },
-  { id: 4, name: 'Castle Kingdom', theme: 'castle', skill: 'Capitals and punctuation', friend: 'panda' },
-  { id: 5, name: 'Dragon Summit',  theme: 'summit', skill: 'Real sentences',           friend: null },
+  { id: 1, name: 'Moonlit Meadow', theme: 'meadow', skill: 'Home row',                 reward: { kind: 'trail', id: 'comet' } },
+  { id: 2, name: 'Sky Peaks',      theme: 'peaks',  skill: 'Top row',                  reward: { kind: 'crest', id: 'antlers' } },
+  { id: 3, name: 'Crystal Cave',   theme: 'cave',   skill: 'Bottom row',               reward: { kind: 'trail', id: 'prism' } },
+  { id: 4, name: 'Night Citadel',  theme: 'castle', skill: 'Capitals and punctuation', reward: { kind: 'crest', id: 'halo' } },
+  { id: 5, name: 'Dragon Summit',  theme: 'summit', skill: 'Real sentences',           reward: { kind: 'skin', id: 'gold' } },
 ];
 
 /* kind: keys = two new keys, review = words from everything so far,
@@ -17,14 +17,14 @@ const LEVELS = [
   { id: '1-3', world: 1, title: 'S and L', keys: 'sl', kind: 'keys' },
   { id: '1-4', world: 1, title: 'A and ;', keys: 'a;', kind: 'keys' },
   { id: '1-5', world: 1, title: 'G and H', keys: 'gh', kind: 'keys' },
-  { id: '1-6', world: 1, title: 'Meadow Treasure Flight', keys: '', kind: 'review' },
+  { id: '1-6', world: 1, title: 'Meadow Final Run', keys: '', kind: 'review' },
 
   { id: '2-1', world: 2, title: 'E and I', keys: 'ei', kind: 'keys' },
   { id: '2-2', world: 2, title: 'R and U', keys: 'ru', kind: 'keys' },
   { id: '2-3', world: 2, title: 'T and Y', keys: 'ty', kind: 'keys' },
   { id: '2-4', world: 2, title: 'W and O', keys: 'wo', kind: 'keys' },
   { id: '2-5', world: 2, title: 'Q and P', keys: 'qp', kind: 'keys' },
-  { id: '2-6', world: 2, title: 'Sky Peaks Treasure Flight', keys: '', kind: 'review' },
+  { id: '2-6', world: 2, title: 'Sky Peaks Final Run', keys: '', kind: 'review' },
 
   { id: '3-1', world: 3, title: 'V and M', keys: 'vm', kind: 'keys' },
   { id: '3-2', world: 3, title: 'C and ,', keys: 'c,', kind: 'keys' },
@@ -33,7 +33,7 @@ const LEVELS = [
     extra: ['the fox sat on a box.', 'six mice fix the van.', 'a fox can relax next to me.'] },
   { id: '3-5', world: 3, title: 'Z and /', keys: 'z/', kind: 'keys',
     extra: ['on/off in/out yes/no', 'zip/zap zig/zag up/down', 'a lazy lizard dozes.'] },
-  { id: '3-6', world: 3, title: 'Crystal Cave Treasure Flight', keys: '', kind: 'review' },
+  { id: '3-6', world: 3, title: 'Crystal Cave Final Run', keys: '', kind: 'review' },
 
   { id: '4-1', world: 4, title: 'Left Shift', keys: '', kind: 'authored', shift: 'left',
     intro: 'Hold the LEFT Shift key with your left pinky, then tap the letter with your right hand.',
@@ -210,58 +210,44 @@ const COMMON_WORDS = ('the and you that was for are with his they at be this hav
   'such because turn here why ask went men read need land different home us move try kind hand picture again ' +
   'change off play spell air away animal house point page letter mother answer found study still learn').split(' ');
 
-/* ---------- Shop ---------- */
+/* ---------- Dragon looks ---------- */
+/* a: head end of the body, b: tail end, fin: wings and fins, glow: r,g,b of the light it gives off */
 const DRAGON_COLORS = {
-  emerald: { name: 'Emerald',  main: '#4fd18b', dark: '#1f8f5a', light: '#8ff0b8', belly: '#fff2c4', wing: '#ffb347', wingDark: '#e07b1f', price: 0 },
-  ocean:   { name: 'Ocean',    main: '#4db8ff', dark: '#1f6fc2', light: '#9ddcff', belly: '#eaf7ff', wing: '#7ef0d8', wingDark: '#22a890', price: 60 },
-  sunset:  { name: 'Sunset',   main: '#ff9248', dark: '#c9541a', light: '#ffc08f', belly: '#fff0c9', wing: '#ffd93b', wingDark: '#d69a00', price: 60 },
-  berry:   { name: 'Berry',    main: '#ff7ab8', dark: '#c93a82', light: '#ffb3d6', belly: '#fff0f6', wing: '#b98cff', wingDark: '#7647d6', price: 80 },
-  royal:   { name: 'Royal',    main: '#a07bff', dark: '#5b34c9', light: '#cdb8ff', belly: '#f3ecff', wing: '#ff8fc7', wingDark: '#d1448f', price: 100 },
-  shadow:  { name: 'Midnight', main: '#4a4f85', dark: '#22254d', light: '#7c83c4', belly: '#c9d2ff', wing: '#49e0ff', wingDark: '#0f9bc4', price: 150 },
-  gold:    { name: 'Legend',   main: '#ffd23f', dark: '#c98a00', light: '#fff0a6', belly: '#fffbe3', wing: '#ff6b6b', wingDark: '#c92f3f', price: -1 },
+  emerald: { name: 'Jade',     a: '#3dffc0', b: '#0b7f8a', fin: '#b6ff3d', belly: '#d8fff0', glow: '61,255,192',  price: 0 },
+  ocean:   { name: 'Tide',     a: '#4fd8ff', b: '#2b4dff', fin: '#9dfcff', belly: '#e0f8ff', glow: '79,216,255',  price: 60 },
+  sunset:  { name: 'Ember',    a: '#ffc23d', b: '#ff3d6e', fin: '#ffe66b', belly: '#fff3d0', glow: '255,150,60',  price: 60 },
+  berry:   { name: 'Orchid',   a: '#ff6bdc', b: '#7a3dff', fin: '#ffc2f2', belly: '#ffe6fa', glow: '255,107,220', price: 80 },
+  royal:   { name: 'Violet',   a: '#b79bff', b: '#3b2bd6', fin: '#ff8fe3', belly: '#efe8ff', glow: '167,139,255', price: 100 },
+  shadow:  { name: 'Void',     a: '#5466ff', b: '#0d0f3a', fin: '#22e1ff', belly: '#9fb0ff', glow: '34,225,255',  price: 150 },
+  gold:    { name: 'Legend',   a: '#fff3b0', b: '#ff9a1c', fin: '#ffffff', belly: '#fffbe6', glow: '255,214,110', price: -1 },
 };
 
-const SHOP = {
-  food: [
-    { id: 'apple',  name: 'Crunchy apple', price: 5,  hearts: 1 },
-    { id: 'fish',   name: 'Silver fish',   price: 8,  hearts: 1 },
-    { id: 'cake',   name: 'Birthday cake', price: 15, hearts: 2 },
-    { id: 'chili',  name: 'Fire chili',    price: 12, hearts: 1, fire: true },
-  ],
-  wear: [
-    { id: 'bow',     name: 'Pink bow',     price: 40 },
-    { id: 'party',   name: 'Party hat',    price: 50 },
-    { id: 'shades',  name: 'Cool shades',  price: 60 },
-    { id: 'scarf',   name: 'Cozy scarf',   price: 60 },
-    { id: 'wizard',  name: 'Wizard hat',   price: 90 },
-    { id: 'crown',   name: 'Gold crown',   price: 150 },
-  ],
-  room: [
-    { id: 'balloons', name: 'Balloons',       price: 20 },
-    { id: 'poster',   name: 'Star poster',    price: 25 },
-    { id: 'rug',      name: 'Rainbow rug',    price: 30 },
-    { id: 'plant',    name: 'Leafy plant',    price: 30 },
-    { id: 'lamp',     name: 'Mushroom lamp',  price: 40 },
-    { id: 'lights',   name: 'Fairy lights',   price: 50 },
-    { id: 'shelf',    name: 'Bookshelf',      price: 60 },
-    { id: 'bed',      name: 'Cloud bed',      price: 70 },
-    { id: 'chest',    name: 'Treasure chest', price: 120 },
-  ],
+/* Trails stream from the tail in flight. price -1 means it is won, not bought. */
+const TRAILS = {
+  spark:  { name: 'Sparks',    price: 0,   colors: ['#ffffff', '#9dfcff'] },
+  ember:  { name: 'Embers',    price: 50,  colors: ['#ffb02e', '#ff4d2e'] },
+  frost:  { name: 'Frost',     price: 70,  colors: ['#e0f8ff', '#4fd8ff'] },
+  bolt:   { name: 'Lightning', price: 110, colors: ['#fff36b', '#b79bff'] },
+  comet:  { name: 'Comet',     price: -1,  colors: ['#ffffff', '#5466ff'], world: 1 },
+  prism:  { name: 'Prism',     price: -1,  colors: ['#ff3df0', '#22e1ff'], world: 3 },
 };
 
-const FRIENDS = {
-  bunny:  { name: 'Clover the bunny' },
-  fox:    { name: 'Ember the fox' },
-  kitten: { name: 'Pebble the kitten' },
-  panda:  { name: 'Bao the panda' },
+/* Crests change the horns */
+const CRESTS = {
+  horns:   { name: 'Horns',      price: 0 },
+  blade:   { name: 'Blade',      price: 60 },
+  twin:    { name: 'Long horns', price: 90 },
+  spikes:  { name: 'Spine crown', price: 130 },
+  antlers: { name: 'Antlers',    price: -1, world: 2 },
+  halo:    { name: 'Halo',       price: -1, world: 4 },
 };
 
-const PET_NAMES = ['Ember', 'Sparky', 'Nova', 'Pepper', 'Comet', 'Juniper', 'Blaze', 'Mochi', 'Zuzu', 'Pip',
-  'Luna', 'Fig', 'Toffee', 'Sunny', 'Twig', 'Waffles'];
+const PET_NAMES = ['Ember', 'Nova', 'Onyx', 'Comet', 'Vex', 'Juniper', 'Blaze', 'Zephyr', 'Kai', 'Lyra',
+  'Luna', 'Rune', 'Storm', 'Echo', 'Ash', 'Vega'];
 
-const SPEED_NAMES = [[0, 'Snail speed'], [6, 'Turtle speed'], [10, 'Bunny speed'], [15, 'Fox speed'],
-  [20, 'Eagle speed'], [28, 'Dragon speed'], [38, 'Rocket speed']];
+const SPEED_NAMES = [[0, 'Warming up'], [6, 'Steady'], [10, 'Quick'], [15, 'Swift'],
+  [20, 'Blazing'], [28, 'Dragon speed'], [38, 'Lightspeed']];
 
 /* Stars a dragon needs to grow to each stage */
 const GROW_AT = [0, 12, 34, 62];
-const STAGE_NAMES = ['Baby dragon', 'Young dragon', 'Brave dragon', 'Mighty dragon'];
+const STAGE_NAMES = ['Hatchling', 'Wyrmling', 'Drake', 'Elder dragon'];

@@ -9,11 +9,11 @@ const src = path.join(__dirname, 'src');
 const read = f => fs.readFileSync(path.join(src, f), 'utf8');
 const b64 = f => fs.readFileSync(path.join(src, f)).toString('base64');
 
-const JS = ['data', 'content', 'state', 'audio', 'art', 'scene', 'keyboard', 'ui', 'screens', 'map', 'level', 'mini', 'parent'];
+const JS = ['data', 'content', 'state', 'audio', 'art', 'scene', 'dragon', 'keyboard', 'ui', 'screens', 'map', 'level', 'mini', 'parent'];
 
 const fonts = `
-@font-face { font-family: 'Fredoka'; font-weight: 300 700; font-display: block; src: url(data:font/woff2;base64,${b64('fonts/fredoka.woff2')}) format('woff2'); }
-@font-face { font-family: 'Atkinson'; font-weight: 700; font-display: block; src: url(data:font/woff2;base64,${b64('fonts/atkinson-bold.woff2')}) format('woff2'); }`;
+@font-face { font-family: 'Exo 2'; font-weight: 100 900; font-display: block; src: url(data:font/woff2;base64,${b64('fonts/exo2.woff2')}) format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 100 800; font-display: block; src: url(data:font/woff2;base64,${b64('fonts/jetbrains-mono.woff2')}) format('woff2'); }`;
 
 const css = read('style.css').replace('/*__FONTS__*/', fonts);
 const js = JS.map(n => `/* ---- ${n}.js ---- */\n` + read(`js/${n}.js`)).join('\n');
