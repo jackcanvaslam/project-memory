@@ -35,7 +35,7 @@ App.register('map', {
       const stars = Store.levelStars(l.id), unlocked = Store.levelOpen(l.id) && open, isNext = l.id === next.id && stars === 0 && unlocked;
       if (isNext) this.orbit = pts[i];
       const cls = ['node', stars ? 'done' : '', !unlocked ? 'locked' : '', isNext ? 'next' : ''].join(' ');
-      const face = !unlocked ? ic('lock') : l.kind === 'review' ? ic('bolt') : String(i + 1).padStart(2, '0');
+      const face = !unlocked ? ic('lock') : BOSS_LEVELS.has(l.id) ? ic('bolt') : String(i + 1).padStart(2, '0');
       const label = l.kind === 'review' ? 'Final run' : l.title;
       return `<button class="${cls}" style="left:${pts[i][0]}px;top:${pts[i][1]}px" data-act="level" data-id="${l.id}" ${unlocked ? '' : 'tabindex="-1"'}>
         <span class="node-dot">${face}</span>

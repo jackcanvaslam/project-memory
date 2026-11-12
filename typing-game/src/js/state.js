@@ -11,7 +11,7 @@ const Store = (() => {
     pet: { name: '', color: 'emerald', trail: 'spark', crest: 'horns' },
     coins: 0, levels: {}, owned: {}, seenStage: 0,
     keys: {}, history: [], streak: { count: 0, last: '' }, totalSecs: 0,
-    settings: { sound: true, music: true, unlockAll: false }, mini: { best: 0, plays: 0 },
+    settings: { sound: true, music: true, unlockAll: false, difficulty: 'normal' }, mini: { best: 0, plays: 0 },
   });
 
   let S = fresh();

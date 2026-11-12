@@ -90,6 +90,9 @@ const LEVELS = [
       '{K} and {P} flew home, sleepy and proud.', 'What a night. What a team.'] },
 ];
 
+/* the last level of each world is a boss fight (when enemies are switched on) */
+const BOSS_LEVELS = new Set(WORLDS.map(w => LEVELS.filter(l => l.world === w.id).pop().id));
+
 /* Which finger presses each key. L/R + finger number: 1 pinky, 2 ring, 3 middle, 4 pointer, 5 thumb */
 const FINGERS = {
   L1: { hand: 'left',  name: 'pinky',   keys: '`1qaz' },

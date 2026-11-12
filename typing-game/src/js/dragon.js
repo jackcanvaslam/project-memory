@@ -15,11 +15,11 @@ class Dragon {
     this.place(opts.x || 0, opts.y || 0);
   }
 
-  setLook({ color = 'emerald', stage = 1, trail = 'spark', crest = 'horns', size = this.size || 1 } = {}) {
+  setLook({ color = 'emerald', stage = 1, trail = 'spark', crest = 'horns', size = this.size || 1, pal = null } = {}) {
     const st = clamp(stage, 0, 3), grew = this.stage !== st || this.size !== size;
     this.size = size;
     this.stage = st; this.trailId = TRAILS[trail] ? trail : 'spark'; this.crest = CRESTS[crest] ? crest : 'horns';
-    this.pal = DRAGON_COLORS[color] || DRAGON_COLORS.emerald;
+    this.pal = pal || DRAGON_COLORS[color] || DRAGON_COLORS.emerald;
     this.ca = hexRgb(this.pal.a); this.cb = hexRgb(this.pal.b); this.cf = hexRgb(this.pal.fin);
     this.N = [17, 22, 28, 34][st]; this.L = [9.5, 10.5, 11, 11.5][st] * size; this.W = [9, 11, 13, 15][st] * size;
     this.wingLen = [38, 52, 66, 80][st] * size; this.headS = this.W * [1.55, 1.42, 1.32, 1.24][st];

@@ -300,6 +300,45 @@ input.text:focus { border-color: var(--cyan); outline: none; box-shadow: 0 0 22p
 .settings input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--cyan); } .settings input.text { font-size: 16px; width: 170px; height: 40px; padding: 0 12px; }
 .chart text { font: 500 12px var(--ui); fill: #8f98c9; }
 
+/* ---------- combat ---------- */
+.combat .flow { display: none; }
+.vitals { position: absolute; left: 50%; top: 16px; width: 300px; margin-left: -150px; z-index: 6; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.vit span { display: block; font-size: 10px; font-weight: 700; letter-spacing: .26em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
+.pips { display: flex; gap: 4px; align-items: center; height: 12px; }
+.pips i { flex: 1; height: 10px; border-radius: 3px; background: rgba(255, 255, 255, .12); transform: skewX(-14deg); transition: background .2s, box-shadow .2s; }
+.pips i.on { background: linear-gradient(180deg, #ff8fa8, #ff3d6e); box-shadow: 0 0 10px rgba(255, 61, 110, .8); }
+.pips b { display: flex; color: var(--cyan); font-size: 15px; margin-left: 2px; filter: drop-shadow(0 0 6px var(--cyan)); }
+.vitals.low .pips i.on { animation: lowlife .7s ease-in-out infinite; }
+@keyframes lowlife { 50% { filter: brightness(1.7); } }
+.vitals.down { opacity: .45; }
+.meter { height: 10px; border-radius: 3px; background: rgba(255, 255, 255, .12); overflow: hidden; margin-top: 1px; transform: skewX(-14deg); }
+.meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #4d6bff, #b79bff); box-shadow: 0 0 10px #8b5cff; transition: width .15s; }
+.vitals.full .meter { box-shadow: 0 0 0 1px #fff, 0 0 18px #b79bff; animation: pulse .7s ease-in-out infinite; }
+.vitals.full .meter i { background: linear-gradient(90deg, #b79bff, #fff); }
+.vitals.full .mana span { color: #fff; }
+.key.charged { border-color: #b79bff; color: #fff; box-shadow: 0 0 18px #8b5cff, inset 0 0 12px rgba(139, 92, 255, .5); animation: pulse .7s ease-in-out infinite; }
+.bossbar { position: absolute; left: 50%; top: 74px; width: 520px; margin-left: -260px; z-index: 6; text-align: center; transition: opacity .6s; }
+.bossbar.gone { opacity: 0; }
+.bossbar span { font-size: 12px; font-weight: 800; letter-spacing: .3em; text-transform: uppercase; color: #ffd9e0; text-shadow: 0 0 12px var(--red); }
+.bossbar div { height: 10px; border-radius: 3px; background: rgba(8, 11, 34, .8); border: 1px solid rgba(255, 77, 109, .6); margin-top: 6px; overflow: hidden; }
+.bossbar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #ff3d6e, #ff9a3d); box-shadow: 0 0 12px var(--red); transition: width .25s; }
+.cast { position: absolute; left: 50%; top: 96px; transform: translateX(-50%); z-index: 9; padding: 16px 22px 12px; text-align: center; background: rgba(9, 12, 38, .96); border: 1px solid #b79bff; border-radius: 16px;
+  box-shadow: 0 0 50px rgba(139, 92, 255, .45), 0 20px 60px rgba(0, 0, 0, .6); animation: pop .22s cubic-bezier(.2, 1.1, .3, 1) both; }
+.cast .kicker { color: #cdbcff; }
+.cast-opts { display: flex; gap: 12px; margin-top: 12px; }
+.cast-opt { min-width: 190px; padding: 12px 16px 10px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--mc) 60%, transparent); background: color-mix(in srgb, var(--mc) 10%, transparent); display: flex; flex-direction: column; align-items: center; gap: 3px; transition: opacity .15s, transform .15s; }
+.cast-opt .ic { font-size: 26px; color: var(--mc); } .cast-opt b { font-size: 13px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--mc); }
+.cast-opt .cw { font: 700 34px var(--mono); letter-spacing: 3px; color: #fff; margin: 2px 0; } .cast-opt .cw i { font-style: normal; color: var(--mc); text-shadow: 0 0 14px var(--mc); }
+.cast-opt small { font-size: 12px; color: var(--dim); }
+.cast-opt.on { transform: scale(1.05); box-shadow: 0 0 26px color-mix(in srgb, var(--mc) 60%, transparent); border-color: var(--mc); } .cast-opt.off { opacity: .3; }
+.cast-esc { margin-top: 10px; font-size: 10px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); }
+.casting .prompt { opacity: .35; transition: opacity .2s; }
+.seg { display: flex; gap: 4px; margin-top: 8px; padding: 4px; border-radius: 10px; background: rgba(255, 255, 255, .06); }
+.seg button { flex: 1; height: 34px; border-radius: 7px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); transition: background .15s, color .15s; }
+.seg button:hover { color: #fff; } .seg button.on { background: rgb(var(--accent)); color: #050818; box-shadow: 0 0 16px rgba(var(--accent), .5); }
+.seg-note { margin: 10px 0 0 !important; font-size: 13px !important; line-height: 1.45; color: #b9c1ee !important; min-height: 56px; }
+.settings select { font: 600 15px var(--ui); color: var(--text); height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .25); background: #12163a; }
+
 </style>
 </head>
 <body>
@@ -404,6 +443,9 @@ const LEVELS = [
       'The moon smiled as they zoomed by.', 'At last, the star was home.', 'It twinkled twice to say thanks.',
       '{K} and {P} flew home, sleepy and proud.', 'What a night. What a team.'] },
 ];
+
+/* the last level of each world is a boss fight (when enemies are switched on) */
+const BOSS_LEVELS = new Set(WORLDS.map(w => LEVELS.filter(l => l.world === w.id).pop().id));
 
 /* Which finger presses each key. L/R + finger number: 1 pinky, 2 ring, 3 middle, 4 pointer, 5 thumb */
 const FINGERS = {
@@ -755,7 +797,7 @@ const Store = (() => {
     pet: { name: '', color: 'emerald', trail: 'spark', crest: 'horns' },
     coins: 0, levels: {}, owned: {}, seenStage: 0,
     keys: {}, history: [], streak: { count: 0, last: '' }, totalSecs: 0,
-    settings: { sound: true, music: true, unlockAll: false }, mini: { best: 0, plays: 0 },
+    settings: { sound: true, music: true, unlockAll: false, difficulty: 'normal' }, mini: { best: 0, plays: 0 },
   });
 
   let S = fresh();
@@ -907,6 +949,13 @@ const Sound = (() => {
       leadVoice: 'lead', leadOct: 3, leadVol: 0.062, keyVoice: 'saw', keyOct: 2,
       lead: tune([[0, 0], [2, 3], [4, 7, 2], [6, 5], [7, 3], [8, 0, 4], [12, 3, 4], [16, -4], [18, 0], [20, 5, 2], [22, 3], [23, 0], [24, -1, 4], [28, 2, 2], [30, 7, 2]]) },
   };
+  /* boss fights: fast and heavy, D minor, with a brass call */
+  THEMES.boss = { bpm: 132, root: 50, prog: [[0, 'min'], [-4, 'maj'], [5, 'min'], [7, 'maj']], swing: 0,
+    padCut: 2000, padVol: 0.044, arpVoice: 'saw', arpOct: 1, arpLen: 1, arpVol: 0.044, arp: [0, 2, 1, 2, 0, 2, 1, 2, 0, 2, 3, 2, 4, 3, 2, 1],
+    bass: [0, _, 0, 0, 12, _, 0, 0, 0, _, 0, 0, 12, _, 7, 12], bassLen: 0.9, bassVol: 0.18, bassCut: 950,
+    kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0], snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1], hat: [1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1], snareType: 'snare',
+    leadVoice: 'brass', leadOct: 2, leadVol: 0.07, keyVoice: 'saw', keyOct: 2,
+    lead: tune([[0, 0], [1, 0], [2, 3], [4, 7, 2], [6, 5], [7, 3], [8, -4, 3], [11, 0], [12, 3, 4], [16, 5], [17, 5], [18, 8], [20, 12, 2], [22, 10], [23, 8], [24, 7, 3], [27, 11], [28, 14, 4]]) };
   const LAYERS = ['pad', 'arp', 'bass', 'hat', 'kick', 'snare', 'lead'];
   /* how loud each layer is for a given energy between 0 and 1 */
   const layerLevel = (name, e) => ({ pad: 0.75 + 0.25 * e, arp: smooth(0.08, 0.2, e), bass: smooth(0.2, 0.34, e), hat: smooth(0.3, 0.44, e) * 0.9,
@@ -936,7 +985,7 @@ const Sound = (() => {
       this.keyBus = gain(1, this.sfx); this.keyBus.connect(this.echo);
       this.noise = c.createBuffer(1, sr, sr);
       { const d = this.noise.getChannelData(0); for (let i = 0; i < sr; i++) d[i] = Math.random() * 2 - 1; }
-      this.th = null; this.L = null; this.cur = { croot: 60, q: Q.maj }; this.stepDur = 0.2; this.energy = 0.15;
+      this.th = null; this.L = null; this.cur = { croot: 60, q: Q.maj }; this.stepDur = 0.2; this.energy = 0.15; this.tension = 0;
     }
 
     /* switch world: the old theme fades out on its own set of layers, the new one starts clean */
@@ -959,6 +1008,7 @@ const Sound = (() => {
         if (name === 'arp' || name === 'lead') g.connect(delay);
         L[name] = g;
       }
+      L.tense = c.createGain(); L.tense.connect(bus);
       L.padFilter = c.createBiquadFilter(); L.padFilter.type = 'lowpass'; L.padFilter.Q.value = 0.5; L.padFilter.frequency.value = th.padCut * (0.8 + this.energy * 1.6); L.padFilter.connect(L.pad);
       const ch = th.prog[0]; this.cur = { croot: th.root + ch[0], q: Q[ch[1]] };
     }
@@ -1057,6 +1107,10 @@ const Sound = (() => {
       if (th.snare[st]) this.snare(t, th.snareType);
       if (th.hat[st]) this.hat(t, th.hat[st] === 2);
       if (st % 2 === 0) { const n = th.lead[(bar % 4) * 8 + st / 2]; if (n) this.voice(th.leadVoice, midi(th.root + th.leadOct * 12 + n[0]), t, sd * 2 * n[1] * 0.9, th.leadVol, this.L.lead); }
+      if (this.tension > 0.05) {   // low on life: a heartbeat under the music and an uneasy high ping
+        if (st % 8 === 0 || st % 8 === 2) this.tone(st % 8 ? 54 : 64, t, 0.17, 0.4 * this.tension, this.L.tense, 'sine', 38);
+        if (st % 8 === 4) this.voice('pulse', midi(th.root + 37), t, 0.12, 0.02 * this.tension, this.L.tense);
+      }
       if (th.drips && (s * 7 + bar * 3) % 23 === 0) this.voice('bell', midi(th.root + 48 + [0, 3, 7, 10][(s >> 2) % 4]), t + sd * 0.5, 0.5, 0.03, this.L.arp);
     }
 
@@ -1082,10 +1136,14 @@ const Sound = (() => {
       g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.34, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
       o.connect(lp); lp.connect(g); g.connect(this.sfx); o.start(t); o.stop(t + 0.45);
       this.tone(92, t, 0.2, 0.3, this.sfx, 'sine', 48);
+      this.dip(t);
+    }
+    /* muffle and duck the music for a moment */
+    dip(t = this.ctx.currentTime, len = 1.2, depth = 0.5) {
       this.filter.frequency.cancelScheduledValues(t); this.filter.frequency.setValueAtTime(260, t);
-      this.filter.frequency.exponentialRampToValueAtTime(Math.max(600, this.cut), t + 1.2);
-      this.dipUntil = t + 1.2;
-      this.duck.gain.cancelScheduledValues(t); this.duck.gain.setValueAtTime(0.5, t); this.duck.gain.linearRampToValueAtTime(1, t + 0.7);
+      this.filter.frequency.exponentialRampToValueAtTime(Math.max(600, this.cut), t + len);
+      this.dipUntil = t + len;
+      this.duck.gain.cancelScheduledValues(t); this.duck.gain.setValueAtTime(depth, t); this.duck.gain.linearRampToValueAtTime(1, t + len * 0.6);
     }
     chordHit(t, kind, vol, up = 1, dur = 0.5) { const { croot, q } = this.cur; q.forEach((iv, i) => this.voice(kind, midi(croot + 12 * up + iv), t + i * 0.012, dur, vol, this.keyBus)); }
     run(t, notes, gap, kind = 'bell', vol = 0.13, dur = 0.3) { const lad = this.ladder((this.th || THEMES.home).keyOct); notes.forEach((n, i) => this.voice(kind, midi(lad[Math.min(lad.length - 1, n)]), t + i * gap, dur, vol, this.keyBus)); }
@@ -1129,6 +1187,7 @@ const Sound = (() => {
       themeId = wanted; eng.setTheme(themeId); stepN = 0; nextTime = ac.currentTime + 0.12;
     },
     setEnergy(e) { energy = Math.max(0, Math.min(1, e)); },
+    setTension(v) { if (eng) eng.tension = Math.max(0, Math.min(1, v)); },
     get energy() { return energy; },
     setOn(v) { sfxOn = v; if (eng) eng.sfx.gain.setTargetAtTime(v ? 1 : 0, ac.currentTime, 0.03); },
     setMusic(v) { musicOn = v; if (eng) { eng.musicVol.gain.setTargetAtTime(v ? MUSIC_LEVEL : 0, ac.currentTime, 0.12); nextTime = 0; } },
@@ -1152,6 +1211,23 @@ const Sound = (() => {
     equip: live(() => eng.run(now(), [4, 7], 0.06, 'bell', 0.1, 0.3)),
     nope: live(() => { const t = now(); eng.tone(196, t, 0.13, 0.09, eng.sfx, 'square'); eng.tone(156, t + 0.12, 0.2, 0.09, eng.sfx, 'square'); }),
     lose: live(() => { eng.tone(330, now(), 0.34, 0.16, eng.sfx, 'triangle', 150); }),
+    /* combat */
+    hurt: live(() => { const t = now(); eng.noiseHit(t, 0.28, 0.36, 'lowpass', 1200, 0.7, eng.sfx, 160); eng.tone(190, t, 0.32, 0.22, eng.sfx, 'sawtooth', 55); eng.dip(t, 1.4, 0.4); }),
+    block: live(() => { const t = now(); eng.tone(1250, t, 0.16, 0.12, eng.sfx, 'triangle', 1900); eng.noiseHit(t, 0.07, 0.14, 'highpass', 5000, 0.8, eng.sfx); eng.run(t, [8], 0, 'bell', 0.1, 0.5); }),
+    warn: live(() => { const t = now(); eng.tone(980, t, 0.06, 0.06, eng.sfx, 'square'); eng.tone(980, t + 0.09, 0.06, 0.06, eng.sfx, 'square'); }),
+    kill: live(() => { const t = now(); eng.noiseHit(t, 0.2, 0.2, 'bandpass', 1500, 0.8, eng.sfx, 260); eng.run(t + 0.02, [6, 9], 0.05, 'bell', 0.09, 0.35); }),
+    charged: live(() => { const t = now(); eng.run(t, [3, 6, 9], 0.07, 'bell', 0.12, 0.6); eng.noiseHit(t, 0.35, 0.06, 'highpass', 1500, 0.8, eng.sfx, 9000); }),
+    heal: live(() => eng.run(now(), [2, 4, 6, 8], 0.07, 'pluck', 0.1, 0.45)),
+    castOpen: live(() => { const t = now(); eng.noiseHit(t, 0.4, 0.1, 'bandpass', 2600, 1, eng.sfx, 300); eng.tone(520, t, 0.4, 0.07, eng.sfx, 'sine', 180); }),
+    cast: live(id => {
+      const t = now();
+      if (id === 'fire') { eng.noiseHit(t, 0.8, 0.26, 'bandpass', 1200, 0.7, eng.sfx, 160); eng.tone(130, t, 0.7, 0.1, eng.sfx, 'sawtooth', 50); eng.chordHit(t, 'saw', 0.07, 1, 0.6); }
+      else if (id === 'shield') { eng.chordHit(t, 'bell', 0.09, 2, 1.2); eng.noiseHit(t, 0.5, 0.06, 'highpass', 4000, 0.8, eng.sfx, 9000); eng.tone(330, t, 0.5, 0.08, eng.sfx, 'triangle', 990); }
+      else { eng.tone(1400, t, 1.0, 0.12, eng.sfx, 'sine', 90); eng.chordHit(t + 0.1, 'bell', 0.07, 1, 1.6); eng.noiseHit(t, 0.9, 0.08, 'bandpass', 3000, 1.4, eng.sfx, 200); }
+    }),
+    down: live(() => { const t = now(); eng.tone(120, t, 1.1, 0.3, eng.sfx, 'sawtooth', 32); eng.noiseHit(t, 0.7, 0.3, 'lowpass', 900, 0.7, eng.sfx, 80); eng.dip(t, 2.4, 0.3); }),
+    bossHit: live(() => { const t = now(); eng.noiseHit(t, 0.16, 0.22, 'bandpass', 700, 0.9, eng.sfx, 170); eng.tone(130, t, 0.14, 0.14, eng.sfx, 'square', 70); }),
+    bossDown: live(() => { const t = now(); for (let i = 0; i < 5; i++) eng.noiseHit(t + i * 0.13, 0.4, 0.26, 'lowpass', 1400, 0.7, eng.sfx, 90); eng.tone(90, t, 1.2, 0.26, eng.sfx, 'sawtooth', 30); eng.run(t + 0.7, [0, 2, 4, 6, 8, 10], 0.08, 'saw', 0.09, 0.4); eng.chordHit(t + 1.2, 'bell', 0.08, 2, 1.6); }),
     levelUp: live(() => { const t = now(); eng.run(t, [0, 3, 5, 8, 10], 0.1, 'bell', 0.14, 0.7); eng.noiseHit(t, 0.5, 0.08, 'highpass', 1200, 0.8, eng.sfx, 9000); }),
 
     /* for tests: render a few bars to a buffer and report how loud and how bright it is */
@@ -1237,6 +1313,8 @@ const Art = (() => {
     bolt: '<path d="M13.500 2L5 13.500h5.500L9.500 22 19 10h-5.500z" fill="#ffe14d" stroke="#fff6c0" stroke-width="1" stroke-linejoin="round"/>',
     target: line('M12 3a9 9 0 1 0 9 9M12 8a4 4 0 1 0 4 4M12 12l8-8M17 4h3v3'),
     pause: '<rect x="6" y="5" width="4.500" height="14" rx="1.200" fill="currentColor"/><rect x="13.500" y="5" width="4.500" height="14" rx="1.200" fill="currentColor"/>',
+    shield: line('M12 3l7.500 2.800v5.700c0 4.600-3.200 8-7.500 9.500-4.300-1.500-7.500-4.900-7.500-9.500V5.800z'),
+    clock: line('M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5.500l3.500 2'),
     storm: line('M7 15a4.500 4.500 0 0 1 .600-9A5.500 5.500 0 0 1 18 7.500 3.800 3.800 0 0 1 17.500 15M12 12l-2.500 4.500h3L11 21'),
   };
   const fix = s => s.replace(/(\d)\.(\d)00\b/g, '$1.$2');
@@ -1327,7 +1405,7 @@ const Scene = (() => {
   let theme = 'meadow', scroll = 0, t = 0;
   let hz = 0, hzTarget = 0, speed = 24, speedTarget = 24;
   let heat = 0, heatTarget = 0, shake = 0, flash = 0, slow = 0, zoom = 1;
-  let onDraw = null;
+  let onDraw = null, slowmo = false;
   const gems = [], streaks = [];
   /* the colour each world lends to the interface */
   const ACCENT = { meadow: '45,230,200', peaks: '255,92,205', cave: '150,115,255', castle: '255,190,92', summit: '255,122,60' };
@@ -1353,6 +1431,7 @@ const Scene = (() => {
     t += dt;
     let wdt = dt;
     if (slow > 0) { slow -= dt; wdt = dt * 0.12; }
+    if (slowmo) wdt *= 0.25;
     speed = lerp(speed, speedTarget, 1 - Math.pow(0.03, dt));
     hz = lerp(hz, hzTarget, 1 - Math.pow(0.002, dt));
     heat = lerp(heat, heatTarget, 1 - Math.pow(0.05, dt));
@@ -1706,7 +1785,7 @@ const Scene = (() => {
   }
 
   return { init, resize, setTheme, setHorizon, setSpeed, setHeat, hit, update, draw, gems, ACCENT,
-    set onDraw(fn) { onDraw = fn; }, get theme() { return theme; }, get W() { return W; }, get H() { return H; }, get speed() { return speed; }, get heat() { return heat; }, get time() { return t; } };
+    set onDraw(fn) { onDraw = fn; }, set slowmo(v) { slowmo = !!v; }, get theme() { return theme; }, get W() { return W; }, get H() { return H; }, get speed() { return speed; }, get heat() { return heat; }, get time() { return t; } };
 })();
 
 /* ---------------- Particles drawn on top of everything ---------------- */
@@ -1761,8 +1840,13 @@ const FX = (() => {
   function text(x, y, str, color = '#fff', size = 34) {
     add({ type: 'text', x, y, vy: -60, drag: 1.4, str, color, size, life: 1.1 });
   }
-  function shoot(from, to, onHit) {
-    add({ type: 'ball', x: from.x, y: from.y, fx: from.x, fy: from.y, tx: to.x, ty: to.y, life: 0.15, size: 16, onArrive: onHit });
+  function shoot(from, to, onHit, dark = false, life = 0.15) {
+    add({ type: 'ball', x: from.x, y: from.y, fx: from.x, fy: from.y, tx: to.x, ty: to.y, life, size: 16, onArrive: onHit, dark });
+  }
+  /* a quick bolt of light from one point to another */
+  function beam(from, to, color = '#fff', width = 3) {
+    add({ type: 'beam', x: from.x, y: from.y, tx: to.x, ty: to.y, color, size: width, life: 0.16 });
+    add({ type: 'ring', x: to.x, y: to.y, size: 4, grow: 150, color, life: 0.22 });
   }
 
   function update(dt) {
@@ -1773,7 +1857,10 @@ const FX = (() => {
       if (p.age >= p.life) { if (p.onArrive) p.onArrive(p); parts.splice(i, 1); continue; }
       if (p.type === 'ball') {
         const u = p.age / p.life; p.x = lerp(p.fx, p.tx, u); p.y = lerp(p.fy, p.ty, u);
-        add({ type: 'fire', x: p.x, y: p.y, vx: (Math.random() - 0.5) * 80, vy: (Math.random() - 0.5) * 80, size: 16, life: 0.25, drag: 1 });
+        if (!p.dark) add({ type: 'fire', x: p.x, y: p.y, vx: (Math.random() - 0.5) * 80, vy: (Math.random() - 0.5) * 80, size: 16, life: 0.25, drag: 1 });
+        else add({ type: 'star', x: p.x, y: p.y, vx: (Math.random() - 0.5) * 90, vy: (Math.random() - 0.5) * 90, size: 9, color: '#ff3d8f', life: 0.3, drag: 1, rot: Math.random() * 6, vr: 6 });
+      } else if (p.type === 'beam') {
+        /* beams do not move */
       } else {
         p.vy += p.g * dt;
         const d = Math.exp(-p.drag * dt); p.vx *= d; p.vy *= d;
@@ -1830,8 +1917,14 @@ const FX = (() => {
         }
         case 'ball': {
           ctx.globalCompositeOperation = 'lighter';
-          const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 30); g.addColorStop(0, 'rgba(255,250,200,1)'); g.addColorStop(0.4, 'rgba(255,170,50,.9)'); g.addColorStop(1, 'rgba(255,90,40,0)');
+          const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 30); g.addColorStop(0, p.dark ? 'rgba(255,220,240,1)' : 'rgba(255,250,200,1)'); g.addColorStop(0.4, p.dark ? 'rgba(255,50,130,.9)' : 'rgba(255,170,50,.9)'); g.addColorStop(1, p.dark ? 'rgba(140,30,255,0)' : 'rgba(255,90,40,0)');
           ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 30, 0, TAU); ctx.fill(); break;
+        }
+        case 'beam': {
+          ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+          const bx = p.tx - p.x, by = p.ty - p.y;
+          ctx.globalAlpha = fade * 0.35; ctx.strokeStyle = p.color; ctx.lineWidth = p.size * 3.5; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(bx, by); ctx.stroke();
+          ctx.globalAlpha = fade; ctx.strokeStyle = '#fff'; ctx.lineWidth = p.size * fade + 0.5; ctx.beginPath(); ctx.moveTo(bx * u * 0.6, by * u * 0.6); ctx.lineTo(bx, by); ctx.stroke(); break;
         }
       }
       ctx.restore();
@@ -1839,7 +1932,7 @@ const FX = (() => {
   }
   function clear() { parts.length = 0; dirty = true; }
 
-  return { init, resize, burst, confetti, cannon, fire, shells, text, shoot, update, draw, clear, get count() { return parts.length; } };
+  return { init, resize, burst, confetti, cannon, fire, shells, text, shoot, beam, update, draw, clear, get count() { return parts.length; } };
 })();
 
 /* ---- dragon.js ---- */
@@ -1860,11 +1953,11 @@ class Dragon {
     this.place(opts.x || 0, opts.y || 0);
   }
 
-  setLook({ color = 'emerald', stage = 1, trail = 'spark', crest = 'horns', size = this.size || 1 } = {}) {
+  setLook({ color = 'emerald', stage = 1, trail = 'spark', crest = 'horns', size = this.size || 1, pal = null } = {}) {
     const st = clamp(stage, 0, 3), grew = this.stage !== st || this.size !== size;
     this.size = size;
     this.stage = st; this.trailId = TRAILS[trail] ? trail : 'spark'; this.crest = CRESTS[crest] ? crest : 'horns';
-    this.pal = DRAGON_COLORS[color] || DRAGON_COLORS.emerald;
+    this.pal = pal || DRAGON_COLORS[color] || DRAGON_COLORS.emerald;
     this.ca = hexRgb(this.pal.a); this.cb = hexRgb(this.pal.b); this.cf = hexRgb(this.pal.fin);
     this.N = [17, 22, 28, 34][st]; this.L = [9.5, 10.5, 11, 11.5][st] * size; this.W = [9, 11, 13, 15][st] * size;
     this.wingLen = [38, 52, 66, 80][st] * size; this.headS = this.W * [1.55, 1.42, 1.32, 1.24][st];
@@ -2170,6 +2263,519 @@ const DragonViews = {
     }
   },
 };
+
+/* ---- combat.js ---- */
+/* Dragon Keys - combat. Enemies ride the words of the lesson: typing a word destroys the enemy
+   carrying it. Mistakes let enemies strike, clean streaks heal, and a full mana bar arms a
+   power that is cast by pressing Enter and typing a short word. */
+'use strict';
+
+const MOVES = [
+  { id: 'fire',   name: 'Fire breath', icon: 'flame',  text: 'burns the three nearest enemies',   color: '#ff9a3d', world: 0 },
+  { id: 'shield', name: 'Shield',      icon: 'shield', text: 'blocks the next two hits',          color: '#22e1ff', world: 1 },
+  { id: 'slow',   name: 'Time slow',   icon: 'clock',  text: 'freezes enemies for eight seconds', color: '#b79bff', world: 2 },
+];
+const FOE_INFO = {
+  meadow: { kind: 'bat',    name: 'Gloom bats',   boss: 'Gloom Queen',  rgb: '255,95,210' },
+  peaks:  { kind: 'hawk',   name: 'Storm hawks',  boss: 'Tempest Roc',  rgb: '255,225,77' },
+  cave:   { kind: 'golem',  name: 'Shard golems', boss: 'Geode Titan',  rgb: '90,220,255' },
+  castle: { kind: 'knight', name: 'Iron wraiths', boss: 'Iron Warden',  rgb: '255,194,61' },
+  summit: { kind: 'drake',  name: 'Ember drakes', boss: 'Ashen Wyrm',   rgb: '255,110,60' },
+};
+const EMBER_SKIN = { a: '#ff7a3d', b: '#7a1030', fin: '#ffd23f', belly: '#ffd9b0', glow: '255,110,60' };
+const ASHEN_SKIN = { a: '#ff3d5a', b: '#1a0612', fin: '#ff9a3d', belly: '#ffb0a0', glow: '255,60,80' };
+const DIFFICULTY = {
+  calm:   { name: 'Calm',   text: 'No enemies. Just you, the keys and the music.' },
+  normal: { name: 'Normal', text: 'Enemies strike when you slip twice on a word. They wait while you learn the first three levels.' },
+  fierce: { name: 'Fierce', text: 'Enemies from the very first level. They also strike if you take too long. Pays 25% more shards.' },
+};
+
+/* ---------------- how each enemy is drawn (all face left, toward the dragon) ---------------- */
+const FoeArt = {
+  bat(ctx, t, s) {
+    const f = Math.sin(t * 11), edge = 'rgba(255,95,210,.95)';
+    ctx.lineJoin = 'round'; ctx.lineWidth = 1.6 / s + 0.6;
+    for (const side of [-1, 1]) {
+      ctx.beginPath(); ctx.moveTo(side * 7, -2);
+      ctx.lineTo(side * 24, -14 - f * 12); ctx.lineTo(side * 42, -8 - f * 20);
+      ctx.lineTo(side * 34, 6 - f * 6); ctx.lineTo(side * 27, 0 - f * 4); ctx.lineTo(side * 20, 10 - f * 3); ctx.lineTo(side * 13, 3); ctx.lineTo(side * 7, 9);
+      ctx.closePath(); ctx.fillStyle = '#2b1160'; ctx.fill(); ctx.strokeStyle = edge; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(-8, -9); ctx.lineTo(-11, -22); ctx.lineTo(-3, -13); ctx.lineTo(3, -13); ctx.lineTo(11, -22); ctx.lineTo(8, -9); ctx.closePath(); ctx.fillStyle = '#1a0b3d'; ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 0, 11, 14, 0, 0, TAU); ctx.fillStyle = '#1a0b3d'; ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(-5, 6); ctx.lineTo(-3, 12); ctx.lineTo(-1, 6); ctx.moveTo(1, 6); ctx.lineTo(3, 12); ctx.lineTo(5, 6); ctx.fill();
+    this.eyes(ctx, [[-5, -3], [5, -3]], 3.2, '255,160,235');
+  },
+  hawk(ctx, t, s) {
+    const f = Math.sin(t * 9), edge = 'rgba(255,225,77,.95)';
+    ctx.lineJoin = 'round'; ctx.lineWidth = 1.6 / s + 0.6;
+    const wing = (dy, alpha) => {
+      ctx.globalAlpha = alpha; ctx.beginPath(); ctx.moveTo(-8, -3); ctx.lineTo(8, -34 * f - 6 + dy); ctx.lineTo(34, -26 * f - 2 + dy); ctx.lineTo(24, -8 * f); ctx.lineTo(30, -2); ctx.lineTo(14, 2); ctx.closePath();
+      ctx.fillStyle = '#1d2a6e'; ctx.fill(); ctx.strokeStyle = 'rgba(90,225,255,.9)'; ctx.stroke(); ctx.globalAlpha = 1;
+    };
+    wing(8, 0.55);
+    ctx.beginPath(); ctx.moveTo(-38, 3); ctx.lineTo(-24, -4); ctx.lineTo(-16, -11); ctx.lineTo(14, -7); ctx.lineTo(40, -6); ctx.lineTo(30, 1); ctx.lineTo(38, 8); ctx.lineTo(8, 10); ctx.lineTo(-16, 8); ctx.lineTo(-24, 4); ctx.closePath();
+    ctx.fillStyle = '#141a4a'; ctx.fill(); ctx.strokeStyle = edge; ctx.stroke();
+    ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.moveTo(-38, 3); ctx.lineTo(-24, -4); ctx.lineTo(-24, 4); ctx.closePath(); ctx.fill();
+    wing(0, 1);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(255,240,140,.8)'; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(38, 2); ctx.lineTo(48, -3 + f * 3); ctx.lineTo(46, 4); ctx.lineTo(58, 1 - f * 3); ctx.stroke(); ctx.restore();
+    this.eyes(ctx, [[-17, -3]], 3, '255,255,255');
+  },
+  golem(ctx, t, s) {
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < 6; i++) {
+      const a = i * TAU / 6 + t * 0.9, d = 23 + Math.sin(t * 2 + i) * 3, hue = i % 2 ? 265 : 188;
+      ctx.save(); ctx.translate(Math.cos(a) * d, Math.sin(a) * d); ctx.rotate(a + Math.PI / 2);
+      ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(5.5, -2); ctx.lineTo(0, 11); ctx.lineTo(-5.5, -2); ctx.closePath(); ctx.fillStyle = `hsl(${hue},90%,55%)`; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(-5.5, -2); ctx.lineTo(0, 11); ctx.closePath(); ctx.fillStyle = `hsl(${hue},100%,76%)`; ctx.fill();
+      ctx.restore();
+    }
+    ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i * TAU / 6 - t * 0.5; ctx.lineTo(Math.cos(a) * 14, Math.sin(a) * 14); } ctx.closePath();
+    ctx.fillStyle = '#12103a'; ctx.fill(); ctx.strokeStyle = 'rgba(90,220,255,.95)'; ctx.lineWidth = 1.6 / s + 0.6; ctx.stroke();
+    this.eyes(ctx, [[-2, 0]], 5.5, '255,90,220');
+    ctx.fillStyle = '#12103a'; ctx.fillRect(-3, -4.5, 2, 9);
+  },
+  knight(ctx, t, s) {
+    const w = Math.sin(t * 5) * 3, edge = 'rgba(255,194,61,.95)';
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 1.6 / s + 0.6;
+    ctx.beginPath(); ctx.moveTo(6, -10); ctx.quadraticCurveTo(24, -8 + w, 40, -2 + w); ctx.lineTo(36, 22 - w); ctx.quadraticCurveTo(22, 14, 8, 17); ctx.closePath(); ctx.fillStyle = '#6a1640'; ctx.fill(); ctx.strokeStyle = 'rgba(255,61,110,.8)'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-2, -18); ctx.quadraticCurveTo(14, -32, 26, -24 + w * 0.6); ctx.quadraticCurveTo(14, -22, 10, -14); ctx.closePath(); ctx.fillStyle = '#ff3d6e'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-14, 15); ctx.lineTo(-14, -4); ctx.arc(0, -4, 14, Math.PI, 0); ctx.lineTo(14, 15); ctx.quadraticCurveTo(0, 20, -14, 15); ctx.closePath(); ctx.fillStyle = '#232a5c'; ctx.fill(); ctx.strokeStyle = edge; ctx.stroke();
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(255,120,60,.95)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-12, -3); ctx.lineTo(3, -3); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,220,160,.9)'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.restore();
+    ctx.strokeStyle = '#e9edff'; ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(2, 16); ctx.lineTo(-52, 6); ctx.stroke();
+    ctx.fillStyle = '#e9edff'; ctx.beginPath(); ctx.moveTo(-60, 4.5); ctx.lineTo(-48, 2); ctx.lineTo(-49, 10); ctx.closePath(); ctx.fill();
+    ctx.lineWidth = 1.6 / s + 0.6; ctx.beginPath(); ctx.moveTo(-28, -4); ctx.lineTo(-10, -2); ctx.lineTo(-11, 14); ctx.quadraticCurveTo(-20, 24, -27, 12); ctx.closePath(); ctx.fillStyle = '#1a2050'; ctx.fill(); ctx.strokeStyle = edge; ctx.stroke();
+    ctx.fillStyle = '#ffc23d'; ctx.beginPath(); ctx.arc(-19, 7, 3, 0, TAU); ctx.fill();
+  },
+  eyes(ctx, pts, r, rgb) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const [x, y] of pts) {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r * 2.6); g.addColorStop(0, `rgba(${rgb},.95)`); g.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.6, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, r * 0.55, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  },
+};
+
+class Combat {
+  /* is there fighting on this level, given the difficulty she chose? */
+  static on(idx) {
+    const d = Store.get().settings.difficulty;
+    return d !== 'calm' && (d === 'fierce' || idx >= 3);
+  }
+  static moves() {
+    const S = Store.get();
+    return MOVES.filter(m => m.world === 0 || S.settings.unlockAll || Store.worldDone(m.world));
+  }
+
+  constructor(lv) {
+    const S = Store.get(), L = lv.L, level = lv.level, world = WORLDS[level.world - 1];
+    this.lv = lv; this.info = FOE_INFO[world.theme]; this.theme = world.theme;
+    this.fierce = S.settings.difficulty === 'fierce';
+    this.maxHp = 5; this.hp = 5; this.mana = 0; this.shield = 0; this.frozen = 0; this.downed = false;
+    this.wordSlips = 0; this.recent = []; this.clock = 0; this.clockFrac = 0; this.warned = false;
+    this.kills = 0; this.hits = 0; this.cast = null; this.t = 0; this.queue = []; this.bossBeaten = false;
+    this.moves = Combat.moves();
+    this.perChar = [1.5, 1.3, 1.2, 1.1, 1.0][level.world - 1];
+    this.words = [];
+    L.lines.forEach((line, li) => { let s = 0; lv.wordEnds[li].forEach(e => { this.words.push(line.slice(s, e)); s = e; }); });
+
+    this.byWord = new Array(L.wordsTotal).fill(null); this.foes = []; this.boss = null;
+    if (BOSS_LEVELS.has(level.id)) {
+      this.boss = { name: this.info.boss, kind: this.info.kind, hp: L.wordsTotal, max: L.wordsTotal, x: App.W + 260, y: 180, flash: 0, charge: 0, lunge: 0, state: 'fight', deadT: 0, dr: null };
+    } else {
+      const toughRate = [0, 0.12, 0.16, 0.2, 0.25][level.world - 1];
+      for (let i = 0; i < L.wordsTotal;) {
+        const tough = i + 1 < L.wordsTotal && hash(i, lv.idx + 3) < toughRate;
+        const f = { w0: i, w1: tough ? i + 1 : i, tough, armor: tough, kind: this.info.kind, seed: hash(i, 9) * 10, x: 0, y: 190, flash: 0, charge: 0, lunge: 0, state: 'alive', placed: false, dr: null };
+        this.foes.push(f);
+        for (let k = f.w0; k <= f.w1; k++) this.byWord[k] = f;
+        i = f.w1 + 1;
+      }
+    }
+    this.buildHud();
+  }
+
+  /* ---------- the bars at the top ---------- */
+  buildHud() {
+    const el = this.lv.el, box = document.createElement('div');
+    box.className = 'vitals';
+    box.innerHTML = `<div class="vit life"><span>Life</span><div class="pips">${'<i></i>'.repeat(this.maxHp)}<b></b></div></div>
+      <div class="vit mana"><span>Mana</span><div class="meter"><i></i></div></div>`;
+    el.appendChild(box); this.box = box;
+    if (this.boss) {
+      const bb = document.createElement('div'); bb.className = 'bossbar';
+      bb.innerHTML = `<span>${this.boss.name}</span><div><i></i></div>`;
+      el.appendChild(bb); this.bossEl = bb;
+    }
+    el.classList.add('combat');
+    this.hud();
+  }
+  hud() {
+    const pips = $$('.pips i', this.box);
+    pips.forEach((p, i) => p.classList.toggle('on', i < this.hp));
+    $('.pips b', this.box).innerHTML = this.shield > 0 ? ic('shield').repeat(this.shield) : '';
+    this.box.classList.toggle('low', this.hp <= 2 && !this.downed); this.box.classList.toggle('down', this.downed);
+    const full = this.mana >= 100 && !this.downed;
+    $('.meter i', this.box).style.width = this.mana + '%';
+    this.box.classList.toggle('full', full);
+    $('.mana span', this.box).textContent = full ? 'Press Enter' : 'Mana';
+    const enter = this.lv.kb.keyEls.Enter; if (enter) enter.classList.toggle('charged', full && !this.cast);
+    if (this.bossEl) { $('i', this.bossEl).style.width = (this.boss.hp / this.boss.max * 100) + '%'; this.bossEl.classList.toggle('gone', this.boss.state !== 'fight'); }
+    Sound.setTension(this.downed ? 0 : this.hp <= 1 ? 1 : this.hp === 2 ? 0.55 : 0);
+  }
+
+  cur() { return this.byWord[this.lv.L.wordsDone] || null; }
+  bossOn() { return !!this.boss && this.boss.state === 'fight'; }
+  /* while an enemy carries a word, or the boss is up, the plain shard for that word is hidden */
+  hides(i) { return !!this.byWord[i] || this.bossOn(); }
+  /* where the dragon should look */
+  aimY() { const f = this.cur(); return f ? f.y : this.bossOn() ? this.boss.y + Math.sin(this.t * 1.1) * 50 : null; }
+
+  /* ---------- typing events from the level ---------- */
+  key() {
+    if (this.downed) return;
+    const L = this.lv.L, m = this.lv.d.mouth(), f = this.cur();
+    if (f) { FX.beam(m, { x: f.x - 8, y: f.y }, `rgb(${this.lv.d.pal.glow})`, 2.5); f.flash = 1; f.x += 7; }
+    else if (this.bossOn()) { FX.beam(m, { x: this.boss.x - 60 + Math.random() * 40, y: this.boss.y + (Math.random() - 0.5) * 60 }, `rgb(${this.lv.d.pal.glow})`, 2.5); this.boss.flash = Math.max(this.boss.flash, 0.45); }
+    if (this.mana < 100) {
+      this.mana = Math.min(100, this.mana + 2.5);
+      if (this.mana >= 100) { Sound.charged(); const h = this.lv.d.head(); FX.text(h.x + 40, h.y - 70, 'Mana full: press Enter', '#b79bff', 24); }
+    }
+    if (L.streak > 0 && L.streak % 20 === 0 && this.hp < this.maxHp) {
+      this.hp++; Sound.heal();
+      const h = this.lv.d.head(); FX.burst(h.x, h.y, { n: 14, speed: 220, g: -260, colors: ['#7dffb0', '#ffffff'] }); FX.text(h.x + 30, h.y - 60, '+1 life', '#7dffb0', 24);
+    }
+    this.hud();
+  }
+  /* word i has just been finished. Returns true if combat showed it, so the level skips its own effect. */
+  wordDone(i) {
+    this.wordSlips = 0; this.clock = 0; this.warned = false;
+    if (this.downed) return false;
+    const f = this.byWord[i];
+    if (f) {
+      f.charge = 0;
+      if (i < f.w1) { f.armor = false; FX.burst(f.x, f.y, { n: 12, speed: 260, colors: ['#d6faff', '#ffffff'], ringGrow: 160 }); Sound.crack(); return true; }
+      this.kill(f); return true;
+    }
+    if (this.bossOn()) { this.hitBoss(1); return true; }
+    return false;
+  }
+  kill(f) {
+    f.state = 'dead'; this.kills++;
+    for (let k = f.w0; k <= f.w1; k++) this.byWord[k] = null;
+    const c = `rgb(${this.info.rgb})`;
+    FX.burst(f.x, f.y, { n: f.tough ? 26 : 18, speed: 340, size: 9, g: 120, colors: [c, '#ffffff', '#ffd23f'], ringGrow: 260 });
+    Sound.kill();
+  }
+  hitBoss(n) {
+    const b = this.boss;
+    b.hp = Math.max(0, b.hp - n); b.flash = 1;
+    FX.burst(b.x - 40, b.y, { n: 8 + n * 4, speed: 300, size: 9, colors: [`rgb(${this.info.rgb})`, '#ffffff'], ringGrow: 220 });
+    if (n > 1) FX.text(b.x - 40, b.y - 110, `-${n}`, '#ff9a3d', 38);
+    Sound.bossHit();
+    if (b.hp <= 0) this.bossDead();
+    this.hud();
+  }
+  bossDead() {
+    const b = this.boss;
+    b.state = 'dead'; this.bossBeaten = true;
+    for (let i = 0; i < 6; i++) App.later(() => FX.burst(b.x + (Math.random() - 0.5) * 160, b.y + (Math.random() - 0.5) * 120, { n: 22, speed: 420, size: 11, colors: [`rgb(${this.info.rgb})`, '#ffffff', '#ffd23f'], ringGrow: 320 }), i * 130);
+    FX.text(App.W / 2, 150, `${b.name} defeated`, '#ffd23f', 44); FX.confetti(70);
+    Sound.bossDown(); Sound.music(this.theme); Scene.hit();
+    this.hud();
+  }
+  /* a wrong key. One slip on a word is a warning, a second lets the enemy strike. */
+  slip() {
+    if (this.downed || this.frozen > 0) return;
+    const f = this.cur(), L = this.lv.L;
+    if (!f && !this.bossOn()) return;
+    this.wordSlips++; this.recent.push(L.done); this.recent = this.recent.filter(c => L.done - c <= 10);
+    if (this.wordSlips >= 2 || this.recent.length >= 3) { this.wordSlips = 0; this.recent = []; this.strike(); }
+    else { (f || this.boss).charge = 1; Sound.warn(); }
+  }
+  strike() {
+    const f = this.cur(), h = this.lv.d.head();
+    if (f) { f.lunge = 1; f.charge = 0; this.land(); }
+    else if (this.bossOn()) { this.boss.charge = 0; this.boss.lunge = 1; FX.shoot({ x: this.boss.x - 90, y: this.boss.y }, { x: h.x + 20, y: h.y }, () => this.land(), true, 0.22); }
+  }
+  land() {
+    if (this.downed) return;
+    const d = this.lv.d, h = d.head();
+    if (this.shield > 0) {
+      this.shield--; Sound.block();
+      FX.burst(h.x + 20, h.y, { n: 14, speed: 300, g: 0, colors: ['#22e1ff', '#ffffff'], ringGrow: 300 }); FX.text(h.x + 40, h.y - 64, 'Blocked', '#22e1ff', 26);
+    } else {
+      this.hp--; this.hits++;
+      Scene.hit(); d.zap = 1; d.vx -= 260; d.vy += 160; Sound.hurt();
+      FX.burst(h.x + 10, h.y, { n: 16, speed: 320, colors: ['#ff4d6d', '#ffffff', '#ff9a3d'], ringGrow: 240 }); FX.text(h.x + 40, h.y - 64, '-1 life', '#ff4d6d', 26);
+      this.lv.L.heat *= 0.6;
+      if (this.hp <= 0) this.down();
+    }
+    this.hud();
+  }
+  /* out of life: the enemies win this round. She still finishes the text, for one star at most. */
+  down() {
+    this.downed = true; this.closeCast(); this.mana = 0; this.shield = 0; this.frozen = 0;
+    for (const f of this.foes) if (f.state === 'alive') f.state = 'flee';
+    this.byWord.fill(null);
+    if (this.boss && this.boss.state === 'fight') { this.boss.state = 'leave'; Sound.music(this.theme); }
+    Sound.down(); this.lv.L.heat = 0;
+    FX.text(App.W / 2, 236, 'Knocked back', '#ff4d6d', 46);
+    App.toast('Finish the run to earn one star. Replay it to win all three.', 4200);
+    this.hud();
+  }
+
+  /* ---------- powers ---------- */
+  handleKey(e) {
+    if (this.cast) {
+      if (e.key === 'Escape') { this.closeCast(); return true; }
+      if (e.key.length !== 1) return true;
+      const c = this.cast, k = e.key.toLowerCase();
+      if (!c.pick) { const o = c.opts.find(x => x.word[0] === k); if (!o) return this.fizzle(e); c.pick = o; c.pos = 1; }
+      else if (c.pick.word[c.pos] === k) c.pos++;
+      else return this.fizzle(e);
+      this.lv.kb.press(e, true); Sound.key(c.pos + 2, 40);
+      if (c.pos >= c.pick.word.length) this.release(c.pick.move); else this.drawCast();
+      return true;
+    }
+    if (e.key === 'Enter') {
+      if (this.downed) return true;
+      if (this.mana >= 100) this.openCast(); else { Sound.nope(); App.toast('Fill the mana bar with correct keys first', 1800); }
+      return true;
+    }
+    return false;
+  }
+  openCast() {
+    const lv = this.lv, letters = Content.lettersUpTo(lv.idx) || 'fj';
+    const pool = Content.shuffle(Content.wordPool(letters, 3, 5)), used = new Set(), opts = [];
+    for (const move of this.moves) {
+      let word = pool.find(w => !used.has(w[0]));
+      if (!word) {   // not enough real words yet: make one from the keys she knows
+        const first = [...letters].filter(c => !used.has(c)), a = first.length ? Content.pick(first) : letters[0];
+        word = a + Content.pick([...letters]) + Content.pick([...letters]);
+      }
+      used.add(word[0]); opts.push({ move, word });
+    }
+    this.cast = { opts, pick: null, pos: 0 };
+    lv.L.lastT = 0; Scene.slowmo = true; Sound.castOpen();
+    const el = document.createElement('div'); el.className = 'cast';
+    lv.el.appendChild(el); this.castEl = el;
+    lv.el.classList.add('casting');
+    this.drawCast(); this.hud();
+  }
+  drawCast() {
+    const c = this.cast;
+    this.castEl.innerHTML = `<div class="kicker">Choose a power and type its word</div><div class="cast-opts">${c.opts.map(o => {
+      const mine = c.pick === o, n = mine ? c.pos : 0;
+      return `<div class="cast-opt ${mine ? 'on' : c.pick ? 'off' : ''}" style="--mc:${o.move.color}">${ic(o.move.icon)}<b>${o.move.name}</b>
+        <span class="cw"><i>${esc(o.word.slice(0, n))}</i>${esc(o.word.slice(n))}</span><small>${o.move.text}</small></div>`;
+    }).join('')}</div><div class="cast-esc">Esc to cancel</div>`;
+    const next = c.pick ? c.pick.word[c.pos] : null;
+    this.lv.kb.target(next);
+  }
+  closeCast() {
+    if (!this.cast) return;
+    this.cast = null; if (this.castEl) { this.castEl.remove(); this.castEl = null; }
+    Scene.slowmo = false; this.lv.el.classList.remove('casting');
+    const L = this.lv.L; L.lastT = 0;
+    if (L.phase === 'play') this.lv.kb.target(L.lines[L.li][L.pos]);
+    this.hud();
+  }
+  fizzle(e) {
+    if (e) this.lv.kb.press(e, false);
+    this.mana = 50; Sound.nope();
+    const h = this.lv.d.head(); FX.text(h.x + 40, h.y - 64, 'Fizzled', '#8f98c9', 26);
+    this.closeCast();
+    return true;
+  }
+  release(move) {
+    const lv = this.lv, d = lv.d, h = d.head();
+    this.mana = 0; this.closeCast();
+    Sound.cast(move.id);
+    FX.text(h.x + 120, Math.max(110, h.y - 80), move.name, move.color, 36);
+    if (move.id === 'fire') {
+      d.jawTarget = 1;
+      let k = 0;
+      const iv = setInterval(() => { const q = d.mouth(); FX.fire(q.x, q.y, q.dx, q.dy, 1.5); if (++k > 14 || App.screen !== 'level') { clearInterval(iv); d.jawTarget = 0; } }, 45);
+      if (this.bossOn()) App.later(() => { if (this.bossOn()) this.hitBoss(4); }, 320);
+      else this.queue.slice(0, 3).forEach((f, j) => App.later(() => { if (f.state === 'alive') this.kill(f); }, 200 + j * 150));
+    } else if (move.id === 'shield') {
+      this.shield = 2;
+      FX.burst(h.x + 10, h.y, { n: 20, speed: 280, g: 0, colors: ['#22e1ff', '#ffffff'], ringGrow: 340 });
+    } else {
+      this.frozen = 8; this.clock = 0;
+      for (const f of this.foes) f.charge = 0;
+      if (this.boss) this.boss.charge = 0;
+    }
+    this.hud();
+  }
+
+  /* ---------- every frame ---------- */
+  tick(dt) {
+    const lv = this.lv, L = lv.L, W = App.W, hx = lv.hx();
+    this.t += dt;
+    if (this.frozen > 0) this.frozen = Math.max(0, this.frozen - dt);
+    const still = this.frozen > 0, playing = L.phase === 'play' && !this.downed;
+
+    // on Fierce, taking too long on a word also lets the enemy strike
+    const f0 = this.cur();
+    if (this.fierce && playing && !this.cast && !still && (f0 || this.bossOn())) {
+      const allow = 2.5 + (this.words[L.wordsDone] || 'aaaa').length * this.perChar;
+      this.clock += dt; this.clockFrac = this.clock / allow;
+      if (this.clockFrac > 0.7 && !this.warned) { this.warned = true; (f0 || this.boss).charge = 1; Sound.warn(); }
+      if (this.clock >= allow) { this.clock = 0; this.warned = false; this.strike(); }
+    } else if (!playing || still) this.clockFrac = 0;
+
+    const q = [];
+    for (const f of this.foes) {
+      if (f.state === 'dead') continue;
+      if (f.state === 'flee') { f.x += 620 * dt; f.y -= 150 * dt; if (f.dr) f.dr.update(dt, f.x, f.y, 300, 40, 10); continue; }
+      if (q.length < (f.kind === 'drake' ? 4 : 6)) q.push(f);
+    }
+    q.forEach((f, j) => {
+      if (!f.placed) { f.placed = true; f.x = W + 80 + j * 110; f.y = 140 + hash(f.w0, 5) * 110; }
+      const tx = hx + 265 + j * 155, ty = 190 + (still ? 0 : Math.sin(this.t * 1.5 + f.seed) * 32) + (j % 2 ? 24 : -16);
+      const e = 1 - Math.exp(-(still ? 1.2 : 5) * dt);
+      f.x += (tx - f.x) * e; f.y += (ty - f.y) * e;
+      f.flash = Math.max(0, f.flash - dt * 6); f.lunge = Math.max(0, f.lunge - dt * 3);
+      if (f.kind === 'drake') {
+        if (!f.dr) { f.dr = new Dragon({ stage: f.tough ? 2 : 1, size: 0.6, pal: EMBER_SKIN, trail: 'ember' }); f.dr.place(f.x, f.y); f.dr.segs.forEach((s, i) => { s.x = f.x + i * f.dr.L; }); }
+        const p = this.drawPos(f);
+        if (!still) f.dr.update(dt, p.x, p.y, -170, 60, 12);
+      }
+    });
+    this.queue = q;
+
+    const b = this.boss;
+    if (b) {
+      b.flash = Math.max(0, b.flash - dt * 4); b.lunge = Math.max(0, b.lunge - dt * 2.5);
+      if (b.state === 'fight') {
+        const e = 1 - Math.exp(-2.2 * dt), rage = 1 + (1 - b.hp / b.max) * 0.8;
+        b.x += (W - 215 - b.x) * e;
+        b.y += (188 + (still ? 0 : Math.sin(this.t * 0.9 * rage) * 46) - b.y) * e;
+      } else if (b.state === 'dead') { b.deadT += dt; b.y += 90 * dt * b.deadT; }
+      else { b.x += 520 * dt; b.y -= 90 * dt; }
+      if (b.kind === 'drake') {
+        if (!b.dr) { b.dr = new Dragon({ stage: 3, size: 1.5, pal: ASHEN_SKIN, trail: 'ember', crest: 'spikes' }); b.dr.place(b.x, b.y); b.dr.segs.forEach((s, i) => { s.x = b.x + i * b.dr.L; }); }
+        if (!still || b.state !== 'fight') b.dr.update(dt, b.x - 90 - b.lunge * 60, b.y, b.state === 'leave' ? 300 : -200, 30, 9);
+      }
+    }
+  }
+
+  /* an enemy lunges at the dragon when it strikes */
+  drawPos(f) {
+    if (f.lunge <= 0) return f;
+    const h = this.lv.d.head(), p = Math.sin(f.lunge * Math.PI) * 0.82;
+    return { x: lerp(f.x, h.x + 70, p), y: lerp(f.y, h.y, p) };
+  }
+
+  draw(ctx, layer) {
+    const d = this.lv.d, h = d.head();
+    if (layer === 'front') {
+      if (this.shield > 0 || this.downed) {
+        const r = d.headS * 3.6 + 10, a = this.downed ? 0.35 : 0.9, c = this.downed ? '190,200,255' : '34,225,255';
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(h.x + Math.cos(d.heading) * d.headS, h.y + Math.sin(d.heading) * d.headS);
+        const g = ctx.createRadialGradient(0, 0, r * 0.55, 0, 0, r); g.addColorStop(0, `rgba(${c},0)`); g.addColorStop(1, `rgba(${c},${0.3 * a})`);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+        ctx.strokeStyle = `rgba(${c},${a})`; ctx.lineWidth = 2; ctx.setLineDash([14, 8]); ctx.lineDashOffset = -this.t * 40; ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke();
+        ctx.restore();
+      }
+      return;
+    }
+    if (this.frozen > 0) { ctx.fillStyle = `rgba(120,170,255,${0.1 * Math.min(1, this.frozen)})`; ctx.fillRect(0, 0, App.W, 720); }
+    for (let j = this.queue.length - 1; j >= 0; j--) this.drawFoe(ctx, this.queue[j], j === 0);
+    for (const f of this.foes) if (f.state === 'flee' && f.x < App.W + 120) this.drawFoe(ctx, f, false);
+    if (this.boss && (this.boss.state !== 'dead' || this.boss.deadT < 1.1) && this.boss.x < App.W + 300) this.drawBoss(ctx);
+  }
+
+  body(ctx, kind, x, y, s, tt, dr) {
+    if (kind === 'drake') { if (dr) dr.draw(ctx); return; }
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    FoeArt[kind](ctx, tt, s);
+    ctx.restore();
+  }
+
+  drawFoe(ctx, f, engaged) {
+    const p = this.drawPos(f), s = f.tough ? 1.55 : 1.22, still = this.frozen > 0, rgb = this.info.rgb;
+    const x = p.x, y = p.y;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(x, y, 0, x, y, 62 * s); g.addColorStop(0, `rgba(${rgb},${engaged ? 0.3 : 0.16})`); g.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 62 * s, 0, TAU); ctx.fill();
+    ctx.restore();
+    ctx.save(); if (!engaged) ctx.globalAlpha = 0.75;
+    this.body(ctx, f.kind, x, y, s, still ? f.seed : this.t + f.seed, f.dr);
+    ctx.restore();
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    if (f.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${f.flash * 0.5})`; ctx.beginPath(); ctx.arc(x, y, 26 * s, 0, TAU); ctx.fill(); }
+    if (f.armor) {   // tough enemies wear a ring of armour that the first word breaks
+      ctx.strokeStyle = 'rgba(214,250,255,.9)'; ctx.lineWidth = 2.5; ctx.beginPath();
+      for (let i = 0; i <= 6; i++) { const a = i * TAU / 6 + this.t * 0.7; ctx.lineTo(x + Math.cos(a) * 44 * s, y + Math.sin(a) * 44 * s); }
+      ctx.stroke();
+    }
+    if (still) {
+      ctx.fillStyle = 'rgba(150,200,255,.28)'; ctx.beginPath(); ctx.arc(x, y, 40 * s, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(220,240,255,.9)'; ctx.lineWidth = 1.6;
+      for (let i = 0; i < 3; i++) { const a = i * Math.PI / 3; ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * 40 * s, y - Math.sin(a) * 40 * s); ctx.lineTo(x + Math.cos(a) * 40 * s, y + Math.sin(a) * 40 * s); ctx.stroke(); }
+    }
+    if (engaged && !still) {
+      if (f.charge > 0) {   // it has been warned once: the next slip lets it strike
+        const pulse = 0.6 + 0.4 * Math.sin(this.t * 14);
+        ctx.strokeStyle = `rgba(255,60,90,${pulse})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 50 * s, 0, TAU); ctx.stroke();
+      }
+      if (this.fierce && this.clockFrac > 0) {
+        ctx.strokeStyle = this.clockFrac > 0.7 ? 'rgba(255,60,90,.95)' : 'rgba(255,255,255,.55)'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(x, y, 56 * s, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, this.clockFrac)); ctx.stroke();
+      }
+    }
+    ctx.restore();
+    if (engaged) {   // how much of its word is left
+      const L = this.lv.L, ends = this.lv.wordEnds[L.li] || [1], ws = L.wi ? ends[L.wi - 1] : 0, we = ends[L.wi] || 1;
+      let left = 1 - clamp((L.pos - ws) / Math.max(1, we - ws), 0, 1);
+      if (f.tough) left = L.wordsDone === f.w0 ? 0.5 + left * 0.5 : left * 0.5;
+      const w = 46 * s, by = y - 48 * s;
+      ctx.fillStyle = 'rgba(6,8,26,.8)'; ctx.fillRect(x - w / 2 - 2, by - 2, w + 4, 9);
+      ctx.fillStyle = f.charge > 0 ? '#ff4d6d' : `rgb(${rgb})`; ctx.fillRect(x - w / 2, by, w * left, 5);
+    }
+  }
+
+  drawBoss(ctx) {
+    const b = this.boss, rgb = this.info.rgb, still = this.frozen > 0, s = 3.1;
+    const fade = b.state === 'dead' ? Math.max(0, 1 - b.deadT / 1.1) : 1;
+    const x = b.x - b.lunge * 46, y = b.y;
+    ctx.save(); ctx.globalAlpha = fade;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(x, y, 0, x, y, 230); g.addColorStop(0, `rgba(${rgb},${0.26 + 0.08 * Math.sin(this.t * 3)})`); g.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 230, 0, TAU); ctx.fill();
+    ctx.strokeStyle = `rgba(${rgb},.5)`; ctx.lineWidth = 2; ctx.setLineDash([6, 16]); ctx.lineDashOffset = this.t * 30;
+    ctx.beginPath(); ctx.arc(x, y, 150 + Math.sin(this.t * 2) * 6, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+    this.body(ctx, b.kind, x, y, s, still ? 1 : this.t * 0.55, b.dr);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    if (b.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${b.flash * 0.3})`; ctx.beginPath(); ctx.arc(x, y, 120, 0, TAU); ctx.fill(); }
+    if (still) { ctx.fillStyle = 'rgba(150,200,255,.2)'; ctx.beginPath(); ctx.arc(x, y, 150, 0, TAU); ctx.fill(); }
+    if (b.state === 'fight' && !still) {
+      if (b.charge > 0) { ctx.strokeStyle = `rgba(255,60,90,${0.6 + 0.4 * Math.sin(this.t * 14)})`; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, 168, 0, TAU); ctx.stroke(); }
+      if (this.fierce && this.clockFrac > 0) {
+        ctx.strokeStyle = this.clockFrac > 0.7 ? 'rgba(255,60,90,.95)' : 'rgba(255,255,255,.5)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(x, y, 180, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, this.clockFrac)); ctx.stroke();
+      }
+    }
+    ctx.restore();
+    ctx.restore();
+  }
+
+  /* what the fight adds to the result screen */
+  summary() {
+    const el = this.lv.kb.keyEls.Enter; if (el) el.classList.remove('charged');
+    Sound.setTension(0); Scene.slowmo = false;
+    return { downed: this.downed, kills: this.kills, hits: this.hits, boss: this.boss ? this.boss.name : null, bossBeaten: this.bossBeaten, fierce: this.fierce };
+  }
+}
 
 /* ---- keyboard.js ---- */
 /* Dragon Keys - the on-screen keyboard and the two guide hands */
@@ -2588,6 +3194,8 @@ App.register('den', {
     'Index fingers rest on F and J. Feel for the small bumps.',
     'Ten minutes a day is enough to get quick.',
     'Three stars need 98% accuracy. Replay a level to chase them.',
+    'In a fight, one slip is free. Slow down on the next key.',
+    'Mana full? Press Enter and type the power word.',
   ],
   enter(el, params = {}) {
     const next = Store.nextLevel();
@@ -2623,6 +3231,9 @@ App.register('den', {
         <div class="kicker">${allDone ? 'All levels cleared' : 'Next flight'}</div>
         <h4>${esc(next.title)}</h4><p>World ${next.world} · Level ${n} · ${WORLDS[next.world - 1].skill}</p>
         <div class="stars">${[0, 1, 2].map(i => ic(i < got ? 'star' : 'starOff')).join('')}</div>
+        <div class="kicker" style="margin-top:16px">Difficulty</div>
+        <div class="seg">${Object.keys(DIFFICULTY).map(k => `<button class="${S.settings.difficulty === k ? 'on' : ''}" data-act="diff" data-id="${k}">${DIFFICULTY[k].name}</button>`).join('')}</div>
+        <p class="seg-note">${DIFFICULTY[S.settings.difficulty].text}</p>
       </div>
       <div class="lair-actions">
         <button class="btn" data-act="map">${ic('map')} Map</button>
@@ -2632,9 +3243,10 @@ App.register('den', {
         <button class="btn" data-act="parent">${ic('chart')} Stats</button>
       </div>`;
   },
-  act(a) {
+  act(a, b) {
     const S = Store.get();
-    if (a === 'play') { Sound.click(); App.go('level', { id: Store.nextLevel().id }); }
+    if (a === 'diff') { S.settings.difficulty = b.dataset.id; Store.save(); Sound.pop(); this.render(); }
+    else if (a === 'play') { Sound.click(); App.go('level', { id: Store.nextLevel().id }); }
     else if (a === 'map') { Sound.click(); App.go('map'); }
     else if (a === 'forge') { Sound.click(); Forge.open(() => { this.d.setLook(Object.assign(DragonViews.look({ dataset: {} }), { size: [1.8, 1.5, 1.3, 1.15][Store.stage()] })); this.render(); }); }
     else if (a === 'parent') { Sound.click(); App.go('parent'); }
@@ -2755,7 +3367,7 @@ App.register('map', {
       const stars = Store.levelStars(l.id), unlocked = Store.levelOpen(l.id) && open, isNext = l.id === next.id && stars === 0 && unlocked;
       if (isNext) this.orbit = pts[i];
       const cls = ['node', stars ? 'done' : '', !unlocked ? 'locked' : '', isNext ? 'next' : ''].join(' ');
-      const face = !unlocked ? ic('lock') : l.kind === 'review' ? ic('bolt') : String(i + 1).padStart(2, '0');
+      const face = !unlocked ? ic('lock') : BOSS_LEVELS.has(l.id) ? ic('bolt') : String(i + 1).padStart(2, '0');
       const label = l.kind === 'review' ? 'Final run' : l.title;
       return `<button class="${cls}" style="left:${pts[i][0]}px;top:${pts[i][1]}px" data-act="level" data-id="${l.id}" ${unlocked ? '' : 'tabindex="-1"'}>
         <span class="node-dot">${face}</span>
@@ -2855,6 +3467,11 @@ App.register('level', {
       streak: 0, best: 0, activeMs: 0, lastT: 0, phase: 'intro', gemsGot: 0, wordsDone: 0, wordsTotal, note: 0, kps: 0, d: 0, heat: 0, idle: 0 };
 
     const n = Store.worldLevels(level.world).indexOf(level) + 1;
+    const fight = Combat.on(idx), foe = FOE_INFO[world.theme];
+    const tip = fight
+      ? (BOSS_LEVELS.has(level.id) ? `<b>Boss: ${foe.boss}.</b> Every word you finish hurts it.` : `<b>${foe.name}</b> ride the words. Finish a word to destroy its enemy.`)
+        + ` One slip is free. Slip twice on a word and it strikes.${S.settings.difficulty === 'fierce' ? ' On Fierce it also strikes if you take too long.' : ''}<br>Correct keys fill your mana. When it is full, press <b>Enter</b> to cast a power.`
+      : level.world === 1 ? 'Rest your fingers on <b>A S D F</b> and <b>J K L ;</b> and keep your eyes on the screen.' : 'Stars are for accuracy, not speed. A clean streak builds the music.';
     el.innerHTML = `<div class="edge"></div><div class="lv-progress"><i></i></div>
       <div class="lv-top">
         <button class="btn icon" data-act="pause" aria-label="Pause">${ic('pause')}</button>
@@ -2871,7 +3488,7 @@ App.register('level', {
         <div class="kb-panel panel">${Keyboard.markup()}</div>
       </div>
       <div class="lv-banner"><div class="kicker">World ${level.world} · Level ${n}</div><h2>${esc(level.title)}</h2>${LevelInfo.html(level)}
-        <p>${level.world === 1 ? 'Rest your fingers on <b>A S D F</b> and <b>J K L ;</b> and keep your eyes on the screen.' : 'Stars are for accuracy, not speed. A clean streak builds the music.'}</p>
+        <p>${tip}</p>
         <div class="go">Press <span class="keycap">SPACE</span> to start</div></div>`;
     this.prompt = $('.prompt', el); this.nextEl = $('.next-line', el); this.flowEl = $('.flow i', el);
     this.kb = Keyboard.create(el);
@@ -2879,7 +3496,9 @@ App.register('level', {
     el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && b.dataset.act === 'pause') this.pause(); });
     el.classList.add('intro');
     this.d = App.myDragon(); this.d.place(this.hx(), 200);
-    Scene.onDraw = ctx => this.d.draw(ctx);
+    this.C = fight ? new Combat(this) : null;
+    if (this.C && this.C.boss) Sound.music('boss');
+    Scene.onDraw = ctx => { if (this.C) this.C.draw(ctx, 'back'); this.d.draw(ctx); if (this.C) this.C.draw(ctx, 'front'); };
     this.renderLine(false);
     this.tick(0);
   },
@@ -2909,6 +3528,7 @@ App.register('level', {
     const L = this.L;
     if (L.phase === 'intro') { if (e.key === ' ' || e.key === 'Enter') this.start(); else if (e.key === 'Escape') this.pause(); return; }
     if (L.phase !== 'play') return;
+    if (this.C && this.C.handleKey(e)) return;
     if (e.key === 'Escape') { this.pause(); return; }
     if (e.key.length !== 1) { if (e.key === 'Shift') this.kb.press(e); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -2936,6 +3556,7 @@ App.register('level', {
     L.kps += 1; this.d.vy -= 55;
     L.heat = Math.min(1, L.heat + 0.013 + (L.streak > 20 ? 0.005 : 0));
     Sound.key(L.note++, L.streak);
+    if (this.C) this.C.key();
     const p = App.pos(tile, 0.5, 0.3);
     FX.burst(p.x, p.y, { n: 3, size: 4, speed: 130, ring: false, g: -200, colors: [`rgb(${Scene.ACCENT[Scene.theme]})`, '#ffffff'] });
     L.pos++;
@@ -2963,6 +3584,7 @@ App.register('level', {
     setTimeout(() => { tile.classList.remove('err'); caret.classList.remove('bad'); }, 280);
     Scene.hit(); this.d.zap = 1; this.d.vy += 240;
     Sound.miss();
+    if (this.C) this.C.slip();
     if (exp !== exp.toLowerCase() && typed === exp.toLowerCase()) App.toast('Hold Shift to make a capital letter');
     else if (exp === '?' && typed === '/') App.toast('Hold Shift and press / to make a question mark');
     this.updateHud();
@@ -2970,9 +3592,11 @@ App.register('level', {
 
   wordDone() {
     const L = this.L, g = this.gemList[L.wordsDone], m = this.d.mouth();
-    FX.burst(m.x + 10, m.y, { n: 12, speed: 280, size: 8, g: 0, colors: [`hsl(${g.hue},100%,75%)`, '#ffffff', `hsl(${g.hue},90%,60%)`], ringGrow: 170 });
+    if (!(this.C && this.C.wordDone(L.wordsDone))) {
+      FX.burst(m.x + 10, m.y, { n: 12, speed: 280, size: 8, g: 0, colors: [`hsl(${g.hue},100%,75%)`, '#ffffff', `hsl(${g.hue},90%,60%)`], ringGrow: 170 });
+      Sound.gem();
+    }
     L.wordsDone++; L.gemsGot++; L.wi++; L.note = 0;
-    Sound.gem();
     const chip = $('.chip.gems', this.el);
     chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
   },
@@ -2980,7 +3604,9 @@ App.register('level', {
   combo(n) {
     const m = this.d.mouth();
     FX.text(m.x + 130, Math.max(110, m.y - 70), `${n} in a row`, '#ffc23d', 34);
-    Sound.milestone(); Sound.fire();
+    Sound.milestone();
+    if (this.C) return;            // in a fight, fire is a power she casts herself
+    Sound.fire();
     this.d.jawTarget = 1;
     let k = 0;
     const iv = setInterval(() => {
@@ -3017,13 +3643,16 @@ App.register('level', {
     const done = L.phase === 'done';
     Scene.setSpeed(done ? 620 : 46 + Math.min(6, L.kps) * 115);
     Scene.setHeat(done ? 1 : L.heat);
-    Sound.setEnergy(L.phase === 'intro' ? 0.1 : done ? (this.calm ? 0.15 : Math.max(0.6, L.heat)) : 0.16 + L.heat * 0.84);
+    const base = this.C && this.C.bossOn() ? 0.5 : 0.16;
+    Sound.setEnergy(L.phase === 'intro' ? 0.1 : done ? (this.calm ? 0.15 : Math.max(0.6, L.heat)) : base + L.heat * (1 - base));
+    if (this.C) this.C.tick(dt);
     this.flowEl.style.width = (L.heat * 100) + '%';
     this.el.style.setProperty('--heat', L.heat.toFixed(2));
 
     // steer the dragon: it weaves from shard to shard, and loops then streaks away at the end
     const hx = this.hx(), nextGem = this.gemList[L.wordsDone], flow = clamp(Scene.speed * 0.95, 80, 720);
-    let tx = hx + Math.min(46, L.kps * 9), ty = nextGem ? nextGem.y : 190;
+    const aim = this.C && !done ? this.C.aimY() : null;
+    let tx = hx + Math.min(46, L.kps * 9), ty = aim != null ? aim : nextGem ? nextGem.y : 190;
     if (done) {
       this.doneT += dt;
       const u = this.doneT / 0.95;
@@ -3038,6 +3667,7 @@ App.register('level', {
     for (let i = L.wordsDone; i < Math.min(this.gemList.length, L.wordsDone + 7); i++) {
       const g = this.gemList[i], x = hx + 56 + (g.D - L.d);
       if (x > App.W + 60) break;
+      if (this.C && this.C.hides(i)) continue;
       Scene.gems.push({ x, y: g.y, hue: g.hue, s: 1.1, a: done ? 0 : 1, phase: i });
     }
     if (h.y < 96) { h.y = 96; d.vy = Math.max(0, d.vy); }
@@ -3046,6 +3676,7 @@ App.register('level', {
   pause() {
     const L = this.L;
     if (L.phase === 'done') return;
+    if (this.C) this.C.closeCast();
     L.lastT = 0; Sound.click();
     App.modal(`<div class="modal"><button class="btn icon x" data-act="resume" aria-label="Close">${ic('close')}</button><div class="kicker">Paused</div><h2>Take a breath</h2><p>Your dragon will hold position.</p>
       <div class="row"><button class="btn" data-act="map">${ic('map')} Map</button><button class="btn" data-act="again">${ic('retry')} Restart</button>
@@ -3062,7 +3693,9 @@ App.register('level', {
 
     const acc = L.first / L.total, pct = Math.floor(acc * 100);
     const wpm = Math.max(1, Math.round((L.total / 5) / (Math.max(L.activeMs, 2000) / 60000)));
-    const stars = pct >= 98 ? 3 : pct >= 95 ? 2 : pct >= 90 ? 1 : 0;
+    const fight = this.C ? this.C.summary() : null;
+    let stars = pct >= 98 ? 3 : pct >= 95 ? 2 : pct >= 90 ? 1 : 0;
+    if (fight && fight.downed) stars = Math.min(stars, 1);
     const rec = S.levels[id] || (S.levels[id] = { stars: 0, bestAcc: 0, bestWpm: 0, plays: 0 });
     const firstClear = stars > 0 && rec.stars === 0, worldWasDone = Store.worldDone(level.world);
     const newBest = stars > 0 && rec.stars > 0 && pct > rec.bestAcc;
@@ -3074,6 +3707,9 @@ App.register('level', {
     if (stars) {
       coins = Math.round(L.gemsGot * 0.5) + stars * 5;
       if (firstClear) { coins += 10; notes.push('first clear'); }
+      if (fight && fight.bossBeaten) { coins += 15; notes.push('boss beaten'); }
+      if (fight && !fight.downed && fight.hits === 0) { coins += 5; notes.push('untouched'); }
+      if (fight && fight.fierce) { coins += Math.ceil(coins * 0.25); notes.push('fierce bonus'); }
     }
     const streakBonus = Store.touchStreak();
     if (streakBonus) { coins += streakBonus; notes.push(S.streak.count > 1 ? `${S.streak.count} day streak` : 'first flight today'); }
@@ -3089,13 +3725,16 @@ App.register('level', {
     }
     if (Store.stage() > S.seenStage) { events.push({ type: 'grow', before: S.seenStage }); S.seenStage = Store.stage(); }
     Store.save();
-    App.later(() => this.results({ pct, wpm, stars, coins, notes, newBest, events }), 1500);
+    App.later(() => this.results({ pct, wpm, stars, coins, notes, newBest, events, fight }), 1500);
   },
 
   results(r) {
     const L = this.L, level = this.level, next = LEVELS[this.idx + 1], pass = r.stars > 0;
     const speed = SPEED_NAMES.filter(([n]) => r.wpm >= n).pop()[1];
-    const title = r.stars === 3 ? 'Flawless' : r.stars === 2 ? 'Great flying' : r.stars === 1 ? 'Level cleared' : 'So close';
+    const f = r.fight, title = f && f.downed && pass ? 'Survived' : r.stars === 3 ? 'Flawless' : r.stars === 2 ? 'Great flying' : r.stars === 1 ? 'Level cleared' : 'So close';
+    const fourth = !f ? `<b>${L.gemsGot}</b><span>shards caught</span>`
+      : f.boss ? `<b>${f.bossBeaten ? 'Won' : 'Lost'}</b><span>${esc(f.boss)}<br>${f.hits} ${f.hits === 1 ? 'hit' : 'hits'} taken</span>`
+      : `<b>${f.kills}</b><span>enemies beaten<br>${f.hits} ${f.hits === 1 ? 'hit' : 'hits'} taken</span>`;
     const goNext = () => {
       const ev = r.events.shift();
       if (ev) { Celebrate[ev.type](ev, goNext); return; }
@@ -3108,11 +3747,12 @@ App.register('level', {
     const wrap = App.modal(`<div class="modal result"><div class="kicker">${esc(level.title)}</div><h2>${title}${r.newBest ? '<span class="badge-new">NEW BEST</span>' : ''}</h2>
       <div class="stars">${[0, 1, 2].map(i => `<div class="slot">${ic('starOff')}${i < r.stars ? ic('star', 'won') : ''}</div>`).join('')}</div>
       ${pass ? '' : `<p>You scored <b>${r.pct}%</b>. A star needs 90%.<br>Slow down and aim for the glowing key. You are close.</p>`}
+      ${pass && f && f.downed ? '<p>Your dragon was knocked back, so this run is capped at one star.<br>Replay it without losing all your life to win all three.</p>' : ''}
       <div class="stats">
         <div class="stat ${r.pct >= 90 ? 'good' : ''}"><b>${r.pct}%</b><span>accuracy</span></div>
         <div class="stat"><b>${r.wpm}</b><span>words a minute<br>${speed}</span></div>
         <div class="stat"><b>${L.best}</b><span>best streak</span></div>
-        <div class="stat"><b>${L.gemsGot}</b><span>shards caught</span></div>
+        <div class="stat">${fourth}</div>
       </div>
       <div class="earn">${ic('shard')} +<span class="earn-n">0</span>${r.notes.length ? `<small>${esc(r.notes.join(', '))}</small>` : ''}</div>
       <div class="row">
@@ -3150,6 +3790,7 @@ const Celebrate = {
     const look = { zoom: [1.5, 1.3, 1.1, 0.95][Store.stage()] }; look[field] = r.id;
     this.show(`<div class="modal unlock"><div class="kicker">${ev.world.name} complete</div><h2>New ${r.kind}: ${it.name}</h2>
       ${App.dv(look)}
+      ${(() => { const m = MOVES.find(x => x.world === ev.world.id); return m ? `<p>New power: <b>${m.name}</b>. It ${m.text}.</p>` : ''; })()}
       <div class="row"><button class="btn" data-act="later">Keep my look</button><button class="btn primary" data-act="equip">Equip it</button></div></div>`, cb,
     a => { if (a === 'equip') { S.pet[field] = r.id; Store.save(); Sound.equip(); } });
   },
@@ -3385,12 +4026,14 @@ App.register('parent', {
           <li>Stars come from accuracy, not speed. Speed follows once the fingers know where to go.</li>
           <li>Eyes stay on the screen. The glowing key and the coloured fingers show which finger to use.</li>
           <li>The music follows the typing. A clean streak adds layers, and a wrong key drops them.</li>
+          <li>Difficulty: Calm has no enemies. On Normal they strike only after two slips on one word. Fierce adds a time limit, so save it for when the keys are familiar.</li>
           <li>A level needs 90% accuracy to pass. Three stars need 98%, so replaying levels is worth it.</li>
           <li>A typical goal for a ten-year-old is 20 to 25 words a minute at 90% accuracy or better.</li></ul></div></div>
         <div><h2>Settings</h2><div class="box"><div class="settings">
           <label><input type="checkbox" data-set="music" ${S.settings.music ? 'checked' : ''}> Music</label>
           <label><input type="checkbox" data-set="sound" ${S.settings.sound ? 'checked' : ''}> Sound effects</label>
           <label><input type="checkbox" data-set="unlockAll" ${S.settings.unlockAll ? 'checked' : ''}> Unlock every level</label>
+          <label>Difficulty <select data-set="difficulty">${Object.keys(DIFFICULTY).map(k => `<option value="${k}" ${S.settings.difficulty === k ? 'selected' : ''}>${DIFFICULTY[k].name}</option>`).join('')}</select></label>
           <label>Child <input class="text" data-set="kid" maxlength="10" value="${esc(S.kid)}"></label>
           <label>Dragon <input class="text" data-set="pet" maxlength="10" value="${esc(S.pet.name)}"></label>
           <button class="btn small" data-act="reset">Erase all progress</button>
@@ -3406,6 +4049,7 @@ App.register('parent', {
     if (k === 'sound') { S.settings.sound = t.checked; Sound.setOn(t.checked); }
     else if (k === 'music') { S.settings.music = t.checked; Sound.setMusic(t.checked); }
     else if (k === 'unlockAll') S.settings.unlockAll = t.checked;
+    else if (k === 'difficulty') S.settings.difficulty = t.value;
     else if (k === 'kid') { S.kid = cleanName(t.value, S.kid); t.value = S.kid; }
     else if (k === 'pet') { S.pet.name = cleanName(t.value, S.pet.name); t.value = S.pet.name; }
     Store.save();

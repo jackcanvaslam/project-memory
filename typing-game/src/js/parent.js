@@ -70,12 +70,14 @@ App.register('parent', {
           <li>Stars come from accuracy, not speed. Speed follows once the fingers know where to go.</li>
           <li>Eyes stay on the screen. The glowing key and the coloured fingers show which finger to use.</li>
           <li>The music follows the typing. A clean streak adds layers, and a wrong key drops them.</li>
+          <li>Difficulty: Calm has no enemies. On Normal they strike only after two slips on one word. Fierce adds a time limit, so save it for when the keys are familiar.</li>
           <li>A level needs 90% accuracy to pass. Three stars need 98%, so replaying levels is worth it.</li>
           <li>A typical goal for a ten-year-old is 20 to 25 words a minute at 90% accuracy or better.</li></ul></div></div>
         <div><h2>Settings</h2><div class="box"><div class="settings">
           <label><input type="checkbox" data-set="music" ${S.settings.music ? 'checked' : ''}> Music</label>
           <label><input type="checkbox" data-set="sound" ${S.settings.sound ? 'checked' : ''}> Sound effects</label>
           <label><input type="checkbox" data-set="unlockAll" ${S.settings.unlockAll ? 'checked' : ''}> Unlock every level</label>
+          <label>Difficulty <select data-set="difficulty">${Object.keys(DIFFICULTY).map(k => `<option value="${k}" ${S.settings.difficulty === k ? 'selected' : ''}>${DIFFICULTY[k].name}</option>`).join('')}</select></label>
           <label>Child <input class="text" data-set="kid" maxlength="10" value="${esc(S.kid)}"></label>
           <label>Dragon <input class="text" data-set="pet" maxlength="10" value="${esc(S.pet.name)}"></label>
           <button class="btn small" data-act="reset">Erase all progress</button>
@@ -91,6 +93,7 @@ App.register('parent', {
     if (k === 'sound') { S.settings.sound = t.checked; Sound.setOn(t.checked); }
     else if (k === 'music') { S.settings.music = t.checked; Sound.setMusic(t.checked); }
     else if (k === 'unlockAll') S.settings.unlockAll = t.checked;
+    else if (k === 'difficulty') S.settings.difficulty = t.value;
     else if (k === 'kid') { S.kid = cleanName(t.value, S.kid); t.value = S.kid; }
     else if (k === 'pet') { S.pet.name = cleanName(t.value, S.pet.name); t.value = S.pet.name; }
     Store.save();

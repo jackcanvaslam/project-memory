@@ -12,7 +12,7 @@ const Scene = (() => {
   let theme = 'meadow', scroll = 0, t = 0;
   let hz = 0, hzTarget = 0, speed = 24, speedTarget = 24;
   let heat = 0, heatTarget = 0, shake = 0, flash = 0, slow = 0, zoom = 1;
-  let onDraw = null;
+  let onDraw = null, slowmo = false;
   const gems = [], streaks = [];
   /* the colour each world lends to the interface */
   const ACCENT = { meadow: '45,230,200', peaks: '255,92,205', cave: '150,115,255', castle: '255,190,92', summit: '255,122,60' };
@@ -38,6 +38,7 @@ const Scene = (() => {
     t += dt;
     let wdt = dt;
     if (slow > 0) { slow -= dt; wdt = dt * 0.12; }
+    if (slowmo) wdt *= 0.25;
     speed = lerp(speed, speedTarget, 1 - Math.pow(0.03, dt));
     hz = lerp(hz, hzTarget, 1 - Math.pow(0.002, dt));
     heat = lerp(heat, heatTarget, 1 - Math.pow(0.05, dt));
@@ -391,7 +392,7 @@ const Scene = (() => {
   }
 
   return { init, resize, setTheme, setHorizon, setSpeed, setHeat, hit, update, draw, gems, ACCENT,
-    set onDraw(fn) { onDraw = fn; }, get theme() { return theme; }, get W() { return W; }, get H() { return H; }, get speed() { return speed; }, get heat() { return heat; }, get time() { return t; } };
+    set onDraw(fn) { onDraw = fn; }, set slowmo(v) { slowmo = !!v; }, get theme() { return theme; }, get W() { return W; }, get H() { return H; }, get speed() { return speed; }, get heat() { return heat; }, get time() { return t; } };
 })();
 
 /* ---------------- Particles drawn on top of everything ---------------- */
@@ -446,8 +447,13 @@ const FX = (() => {
   function text(x, y, str, color = '#fff', size = 34) {
     add({ type: 'text', x, y, vy: -60, drag: 1.4, str, color, size, life: 1.1 });
   }
-  function shoot(from, to, onHit) {
-    add({ type: 'ball', x: from.x, y: from.y, fx: from.x, fy: from.y, tx: to.x, ty: to.y, life: 0.15, size: 16, onArrive: onHit });
+  function shoot(from, to, onHit, dark = false, life = 0.15) {
+    add({ type: 'ball', x: from.x, y: from.y, fx: from.x, fy: from.y, tx: to.x, ty: to.y, life, size: 16, onArrive: onHit, dark });
+  }
+  /* a quick bolt of light from one point to another */
+  function beam(from, to, color = '#fff', width = 3) {
+    add({ type: 'beam', x: from.x, y: from.y, tx: to.x, ty: to.y, color, size: width, life: 0.16 });
+    add({ type: 'ring', x: to.x, y: to.y, size: 4, grow: 150, color, life: 0.22 });
   }
 
   function update(dt) {
@@ -458,7 +464,10 @@ const FX = (() => {
       if (p.age >= p.life) { if (p.onArrive) p.onArrive(p); parts.splice(i, 1); continue; }
       if (p.type === 'ball') {
         const u = p.age / p.life; p.x = lerp(p.fx, p.tx, u); p.y = lerp(p.fy, p.ty, u);
-        add({ type: 'fire', x: p.x, y: p.y, vx: (Math.random() - 0.5) * 80, vy: (Math.random() - 0.5) * 80, size: 16, life: 0.25, drag: 1 });
+        if (!p.dark) add({ type: 'fire', x: p.x, y: p.y, vx: (Math.random() - 0.5) * 80, vy: (Math.random() - 0.5) * 80, size: 16, life: 0.25, drag: 1 });
+        else add({ type: 'star', x: p.x, y: p.y, vx: (Math.random() - 0.5) * 90, vy: (Math.random() - 0.5) * 90, size: 9, color: '#ff3d8f', life: 0.3, drag: 1, rot: Math.random() * 6, vr: 6 });
+      } else if (p.type === 'beam') {
+        /* beams do not move */
       } else {
         p.vy += p.g * dt;
         const d = Math.exp(-p.drag * dt); p.vx *= d; p.vy *= d;
@@ -515,8 +524,14 @@ const FX = (() => {
         }
         case 'ball': {
           ctx.globalCompositeOperation = 'lighter';
-          const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 30); g.addColorStop(0, 'rgba(255,250,200,1)'); g.addColorStop(0.4, 'rgba(255,170,50,.9)'); g.addColorStop(1, 'rgba(255,90,40,0)');
+          const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 30); g.addColorStop(0, p.dark ? 'rgba(255,220,240,1)' : 'rgba(255,250,200,1)'); g.addColorStop(0.4, p.dark ? 'rgba(255,50,130,.9)' : 'rgba(255,170,50,.9)'); g.addColorStop(1, p.dark ? 'rgba(140,30,255,0)' : 'rgba(255,90,40,0)');
           ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 30, 0, TAU); ctx.fill(); break;
+        }
+        case 'beam': {
+          ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+          const bx = p.tx - p.x, by = p.ty - p.y;
+          ctx.globalAlpha = fade * 0.35; ctx.strokeStyle = p.color; ctx.lineWidth = p.size * 3.5; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(bx, by); ctx.stroke();
+          ctx.globalAlpha = fade; ctx.strokeStyle = '#fff'; ctx.lineWidth = p.size * fade + 0.5; ctx.beginPath(); ctx.moveTo(bx * u * 0.6, by * u * 0.6); ctx.lineTo(bx, by); ctx.stroke(); break;
         }
       }
       ctx.restore();
@@ -524,5 +539,5 @@ const FX = (() => {
   }
   function clear() { parts.length = 0; dirty = true; }
 
-  return { init, resize, burst, confetti, cannon, fire, shells, text, shoot, update, draw, clear, get count() { return parts.length; } };
+  return { init, resize, burst, confetti, cannon, fire, shells, text, shoot, beam, update, draw, clear, get count() { return parts.length; } };
 })();

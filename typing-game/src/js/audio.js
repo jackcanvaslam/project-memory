@@ -56,6 +56,13 @@ const Sound = (() => {
       leadVoice: 'lead', leadOct: 3, leadVol: 0.062, keyVoice: 'saw', keyOct: 2,
       lead: tune([[0, 0], [2, 3], [4, 7, 2], [6, 5], [7, 3], [8, 0, 4], [12, 3, 4], [16, -4], [18, 0], [20, 5, 2], [22, 3], [23, 0], [24, -1, 4], [28, 2, 2], [30, 7, 2]]) },
   };
+  /* boss fights: fast and heavy, D minor, with a brass call */
+  THEMES.boss = { bpm: 132, root: 50, prog: [[0, 'min'], [-4, 'maj'], [5, 'min'], [7, 'maj']], swing: 0,
+    padCut: 2000, padVol: 0.044, arpVoice: 'saw', arpOct: 1, arpLen: 1, arpVol: 0.044, arp: [0, 2, 1, 2, 0, 2, 1, 2, 0, 2, 3, 2, 4, 3, 2, 1],
+    bass: [0, _, 0, 0, 12, _, 0, 0, 0, _, 0, 0, 12, _, 7, 12], bassLen: 0.9, bassVol: 0.18, bassCut: 950,
+    kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0], snare: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1], hat: [1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1], snareType: 'snare',
+    leadVoice: 'brass', leadOct: 2, leadVol: 0.07, keyVoice: 'saw', keyOct: 2,
+    lead: tune([[0, 0], [1, 0], [2, 3], [4, 7, 2], [6, 5], [7, 3], [8, -4, 3], [11, 0], [12, 3, 4], [16, 5], [17, 5], [18, 8], [20, 12, 2], [22, 10], [23, 8], [24, 7, 3], [27, 11], [28, 14, 4]]) };
   const LAYERS = ['pad', 'arp', 'bass', 'hat', 'kick', 'snare', 'lead'];
   /* how loud each layer is for a given energy between 0 and 1 */
   const layerLevel = (name, e) => ({ pad: 0.75 + 0.25 * e, arp: smooth(0.08, 0.2, e), bass: smooth(0.2, 0.34, e), hat: smooth(0.3, 0.44, e) * 0.9,
@@ -85,7 +92,7 @@ const Sound = (() => {
       this.keyBus = gain(1, this.sfx); this.keyBus.connect(this.echo);
       this.noise = c.createBuffer(1, sr, sr);
       { const d = this.noise.getChannelData(0); for (let i = 0; i < sr; i++) d[i] = Math.random() * 2 - 1; }
-      this.th = null; this.L = null; this.cur = { croot: 60, q: Q.maj }; this.stepDur = 0.2; this.energy = 0.15;
+      this.th = null; this.L = null; this.cur = { croot: 60, q: Q.maj }; this.stepDur = 0.2; this.energy = 0.15; this.tension = 0;
     }
 
     /* switch world: the old theme fades out on its own set of layers, the new one starts clean */
@@ -108,6 +115,7 @@ const Sound = (() => {
         if (name === 'arp' || name === 'lead') g.connect(delay);
         L[name] = g;
       }
+      L.tense = c.createGain(); L.tense.connect(bus);
       L.padFilter = c.createBiquadFilter(); L.padFilter.type = 'lowpass'; L.padFilter.Q.value = 0.5; L.padFilter.frequency.value = th.padCut * (0.8 + this.energy * 1.6); L.padFilter.connect(L.pad);
       const ch = th.prog[0]; this.cur = { croot: th.root + ch[0], q: Q[ch[1]] };
     }
@@ -206,6 +214,10 @@ const Sound = (() => {
       if (th.snare[st]) this.snare(t, th.snareType);
       if (th.hat[st]) this.hat(t, th.hat[st] === 2);
       if (st % 2 === 0) { const n = th.lead[(bar % 4) * 8 + st / 2]; if (n) this.voice(th.leadVoice, midi(th.root + th.leadOct * 12 + n[0]), t, sd * 2 * n[1] * 0.9, th.leadVol, this.L.lead); }
+      if (this.tension > 0.05) {   // low on life: a heartbeat under the music and an uneasy high ping
+        if (st % 8 === 0 || st % 8 === 2) this.tone(st % 8 ? 54 : 64, t, 0.17, 0.4 * this.tension, this.L.tense, 'sine', 38);
+        if (st % 8 === 4) this.voice('pulse', midi(th.root + 37), t, 0.12, 0.02 * this.tension, this.L.tense);
+      }
       if (th.drips && (s * 7 + bar * 3) % 23 === 0) this.voice('bell', midi(th.root + 48 + [0, 3, 7, 10][(s >> 2) % 4]), t + sd * 0.5, 0.5, 0.03, this.L.arp);
     }
 
@@ -231,10 +243,14 @@ const Sound = (() => {
       g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.34, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
       o.connect(lp); lp.connect(g); g.connect(this.sfx); o.start(t); o.stop(t + 0.45);
       this.tone(92, t, 0.2, 0.3, this.sfx, 'sine', 48);
+      this.dip(t);
+    }
+    /* muffle and duck the music for a moment */
+    dip(t = this.ctx.currentTime, len = 1.2, depth = 0.5) {
       this.filter.frequency.cancelScheduledValues(t); this.filter.frequency.setValueAtTime(260, t);
-      this.filter.frequency.exponentialRampToValueAtTime(Math.max(600, this.cut), t + 1.2);
-      this.dipUntil = t + 1.2;
-      this.duck.gain.cancelScheduledValues(t); this.duck.gain.setValueAtTime(0.5, t); this.duck.gain.linearRampToValueAtTime(1, t + 0.7);
+      this.filter.frequency.exponentialRampToValueAtTime(Math.max(600, this.cut), t + len);
+      this.dipUntil = t + len;
+      this.duck.gain.cancelScheduledValues(t); this.duck.gain.setValueAtTime(depth, t); this.duck.gain.linearRampToValueAtTime(1, t + len * 0.6);
     }
     chordHit(t, kind, vol, up = 1, dur = 0.5) { const { croot, q } = this.cur; q.forEach((iv, i) => this.voice(kind, midi(croot + 12 * up + iv), t + i * 0.012, dur, vol, this.keyBus)); }
     run(t, notes, gap, kind = 'bell', vol = 0.13, dur = 0.3) { const lad = this.ladder((this.th || THEMES.home).keyOct); notes.forEach((n, i) => this.voice(kind, midi(lad[Math.min(lad.length - 1, n)]), t + i * gap, dur, vol, this.keyBus)); }
@@ -278,6 +294,7 @@ const Sound = (() => {
       themeId = wanted; eng.setTheme(themeId); stepN = 0; nextTime = ac.currentTime + 0.12;
     },
     setEnergy(e) { energy = Math.max(0, Math.min(1, e)); },
+    setTension(v) { if (eng) eng.tension = Math.max(0, Math.min(1, v)); },
     get energy() { return energy; },
     setOn(v) { sfxOn = v; if (eng) eng.sfx.gain.setTargetAtTime(v ? 1 : 0, ac.currentTime, 0.03); },
     setMusic(v) { musicOn = v; if (eng) { eng.musicVol.gain.setTargetAtTime(v ? MUSIC_LEVEL : 0, ac.currentTime, 0.12); nextTime = 0; } },
@@ -301,6 +318,23 @@ const Sound = (() => {
     equip: live(() => eng.run(now(), [4, 7], 0.06, 'bell', 0.1, 0.3)),
     nope: live(() => { const t = now(); eng.tone(196, t, 0.13, 0.09, eng.sfx, 'square'); eng.tone(156, t + 0.12, 0.2, 0.09, eng.sfx, 'square'); }),
     lose: live(() => { eng.tone(330, now(), 0.34, 0.16, eng.sfx, 'triangle', 150); }),
+    /* combat */
+    hurt: live(() => { const t = now(); eng.noiseHit(t, 0.28, 0.36, 'lowpass', 1200, 0.7, eng.sfx, 160); eng.tone(190, t, 0.32, 0.22, eng.sfx, 'sawtooth', 55); eng.dip(t, 1.4, 0.4); }),
+    block: live(() => { const t = now(); eng.tone(1250, t, 0.16, 0.12, eng.sfx, 'triangle', 1900); eng.noiseHit(t, 0.07, 0.14, 'highpass', 5000, 0.8, eng.sfx); eng.run(t, [8], 0, 'bell', 0.1, 0.5); }),
+    warn: live(() => { const t = now(); eng.tone(980, t, 0.06, 0.06, eng.sfx, 'square'); eng.tone(980, t + 0.09, 0.06, 0.06, eng.sfx, 'square'); }),
+    kill: live(() => { const t = now(); eng.noiseHit(t, 0.2, 0.2, 'bandpass', 1500, 0.8, eng.sfx, 260); eng.run(t + 0.02, [6, 9], 0.05, 'bell', 0.09, 0.35); }),
+    charged: live(() => { const t = now(); eng.run(t, [3, 6, 9], 0.07, 'bell', 0.12, 0.6); eng.noiseHit(t, 0.35, 0.06, 'highpass', 1500, 0.8, eng.sfx, 9000); }),
+    heal: live(() => eng.run(now(), [2, 4, 6, 8], 0.07, 'pluck', 0.1, 0.45)),
+    castOpen: live(() => { const t = now(); eng.noiseHit(t, 0.4, 0.1, 'bandpass', 2600, 1, eng.sfx, 300); eng.tone(520, t, 0.4, 0.07, eng.sfx, 'sine', 180); }),
+    cast: live(id => {
+      const t = now();
+      if (id === 'fire') { eng.noiseHit(t, 0.8, 0.26, 'bandpass', 1200, 0.7, eng.sfx, 160); eng.tone(130, t, 0.7, 0.1, eng.sfx, 'sawtooth', 50); eng.chordHit(t, 'saw', 0.07, 1, 0.6); }
+      else if (id === 'shield') { eng.chordHit(t, 'bell', 0.09, 2, 1.2); eng.noiseHit(t, 0.5, 0.06, 'highpass', 4000, 0.8, eng.sfx, 9000); eng.tone(330, t, 0.5, 0.08, eng.sfx, 'triangle', 990); }
+      else { eng.tone(1400, t, 1.0, 0.12, eng.sfx, 'sine', 90); eng.chordHit(t + 0.1, 'bell', 0.07, 1, 1.6); eng.noiseHit(t, 0.9, 0.08, 'bandpass', 3000, 1.4, eng.sfx, 200); }
+    }),
+    down: live(() => { const t = now(); eng.tone(120, t, 1.1, 0.3, eng.sfx, 'sawtooth', 32); eng.noiseHit(t, 0.7, 0.3, 'lowpass', 900, 0.7, eng.sfx, 80); eng.dip(t, 2.4, 0.3); }),
+    bossHit: live(() => { const t = now(); eng.noiseHit(t, 0.16, 0.22, 'bandpass', 700, 0.9, eng.sfx, 170); eng.tone(130, t, 0.14, 0.14, eng.sfx, 'square', 70); }),
+    bossDown: live(() => { const t = now(); for (let i = 0; i < 5; i++) eng.noiseHit(t + i * 0.13, 0.4, 0.26, 'lowpass', 1400, 0.7, eng.sfx, 90); eng.tone(90, t, 1.2, 0.26, eng.sfx, 'sawtooth', 30); eng.run(t + 0.7, [0, 2, 4, 6, 8, 10], 0.08, 'saw', 0.09, 0.4); eng.chordHit(t + 1.2, 'bell', 0.08, 2, 1.6); }),
     levelUp: live(() => { const t = now(); eng.run(t, [0, 3, 5, 8, 10], 0.1, 'bell', 0.14, 0.7); eng.noiseHit(t, 0.5, 0.08, 'highpass', 1200, 0.8, eng.sfx, 9000); }),
 
     /* for tests: render a few bars to a buffer and report how loud and how bright it is */

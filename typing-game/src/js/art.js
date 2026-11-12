@@ -45,6 +45,8 @@ const Art = (() => {
     bolt: '<path d="M13.500 2L5 13.500h5.500L9.500 22 19 10h-5.500z" fill="#ffe14d" stroke="#fff6c0" stroke-width="1" stroke-linejoin="round"/>',
     target: line('M12 3a9 9 0 1 0 9 9M12 8a4 4 0 1 0 4 4M12 12l8-8M17 4h3v3'),
     pause: '<rect x="6" y="5" width="4.500" height="14" rx="1.200" fill="currentColor"/><rect x="13.500" y="5" width="4.500" height="14" rx="1.200" fill="currentColor"/>',
+    shield: line('M12 3l7.500 2.800v5.700c0 4.600-3.200 8-7.500 9.500-4.300-1.500-7.500-4.900-7.500-9.500V5.800z'),
+    clock: line('M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5.500l3.500 2'),
     storm: line('M7 15a4.500 4.500 0 0 1 .600-9A5.500 5.500 0 0 1 18 7.500 3.800 3.800 0 0 1 17.500 15M12 12l-2.500 4.500h3L11 21'),
   };
   const fix = s => s.replace(/(\d)\.(\d)00\b/g, '$1.$2');

@@ -9,7 +9,7 @@ const src = path.join(__dirname, 'src');
 const read = f => fs.readFileSync(path.join(src, f), 'utf8');
 const b64 = f => fs.readFileSync(path.join(src, f)).toString('base64');
 
-const JS = ['data', 'content', 'state', 'audio', 'art', 'scene', 'dragon', 'keyboard', 'ui', 'screens', 'map', 'level', 'mini', 'parent'];
+const JS = ['data', 'content', 'state', 'audio', 'art', 'scene', 'dragon', 'combat', 'keyboard', 'ui', 'screens', 'map', 'level', 'mini', 'parent'];
 
 const fonts = `
 @font-face { font-family: 'Exo 2'; font-weight: 100 900; font-display: block; src: url(data:font/woff2;base64,${b64('fonts/exo2.woff2')}) format('woff2'); }

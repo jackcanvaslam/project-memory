@@ -23,6 +23,11 @@ App.register('level', {
       streak: 0, best: 0, activeMs: 0, lastT: 0, phase: 'intro', gemsGot: 0, wordsDone: 0, wordsTotal, note: 0, kps: 0, d: 0, heat: 0, idle: 0 };
 
     const n = Store.worldLevels(level.world).indexOf(level) + 1;
+    const fight = Combat.on(idx), foe = FOE_INFO[world.theme];
+    const tip = fight
+      ? (BOSS_LEVELS.has(level.id) ? `<b>Boss: ${foe.boss}.</b> Every word you finish hurts it.` : `<b>${foe.name}</b> ride the words. Finish a word to destroy its enemy.`)
+        + ` One slip is free. Slip twice on a word and it strikes.${S.settings.difficulty === 'fierce' ? ' On Fierce it also strikes if you take too long.' : ''}<br>Correct keys fill your mana. When it is full, press <b>Enter</b> to cast a power.`
+      : level.world === 1 ? 'Rest your fingers on <b>A S D F</b> and <b>J K L ;</b> and keep your eyes on the screen.' : 'Stars are for accuracy, not speed. A clean streak builds the music.';
     el.innerHTML = `<div class="edge"></div><div class="lv-progress"><i></i></div>
       <div class="lv-top">
         <button class="btn icon" data-act="pause" aria-label="Pause">${ic('pause')}</button>
@@ -39,7 +44,7 @@ App.register('level', {
         <div class="kb-panel panel">${Keyboard.markup()}</div>
       </div>
       <div class="lv-banner"><div class="kicker">World ${level.world} · Level ${n}</div><h2>${esc(level.title)}</h2>${LevelInfo.html(level)}
-        <p>${level.world === 1 ? 'Rest your fingers on <b>A S D F</b> and <b>J K L ;</b> and keep your eyes on the screen.' : 'Stars are for accuracy, not speed. A clean streak builds the music.'}</p>
+        <p>${tip}</p>
         <div class="go">Press <span class="keycap">SPACE</span> to start</div></div>`;
     this.prompt = $('.prompt', el); this.nextEl = $('.next-line', el); this.flowEl = $('.flow i', el);
     this.kb = Keyboard.create(el);
@@ -47,7 +52,9 @@ App.register('level', {
     el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && b.dataset.act === 'pause') this.pause(); });
     el.classList.add('intro');
     this.d = App.myDragon(); this.d.place(this.hx(), 200);
-    Scene.onDraw = ctx => this.d.draw(ctx);
+    this.C = fight ? new Combat(this) : null;
+    if (this.C && this.C.boss) Sound.music('boss');
+    Scene.onDraw = ctx => { if (this.C) this.C.draw(ctx, 'back'); this.d.draw(ctx); if (this.C) this.C.draw(ctx, 'front'); };
     this.renderLine(false);
     this.tick(0);
   },
@@ -77,6 +84,7 @@ App.register('level', {
     const L = this.L;
     if (L.phase === 'intro') { if (e.key === ' ' || e.key === 'Enter') this.start(); else if (e.key === 'Escape') this.pause(); return; }
     if (L.phase !== 'play') return;
+    if (this.C && this.C.handleKey(e)) return;
     if (e.key === 'Escape') { this.pause(); return; }
     if (e.key.length !== 1) { if (e.key === 'Shift') this.kb.press(e); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -104,6 +112,7 @@ App.register('level', {
     L.kps += 1; this.d.vy -= 55;
     L.heat = Math.min(1, L.heat + 0.013 + (L.streak > 20 ? 0.005 : 0));
     Sound.key(L.note++, L.streak);
+    if (this.C) this.C.key();
     const p = App.pos(tile, 0.5, 0.3);
     FX.burst(p.x, p.y, { n: 3, size: 4, speed: 130, ring: false, g: -200, colors: [`rgb(${Scene.ACCENT[Scene.theme]})`, '#ffffff'] });
     L.pos++;
@@ -131,6 +140,7 @@ App.register('level', {
     setTimeout(() => { tile.classList.remove('err'); caret.classList.remove('bad'); }, 280);
     Scene.hit(); this.d.zap = 1; this.d.vy += 240;
     Sound.miss();
+    if (this.C) this.C.slip();
     if (exp !== exp.toLowerCase() && typed === exp.toLowerCase()) App.toast('Hold Shift to make a capital letter');
     else if (exp === '?' && typed === '/') App.toast('Hold Shift and press / to make a question mark');
     this.updateHud();
@@ -138,9 +148,11 @@ App.register('level', {
 
   wordDone() {
     const L = this.L, g = this.gemList[L.wordsDone], m = this.d.mouth();
-    FX.burst(m.x + 10, m.y, { n: 12, speed: 280, size: 8, g: 0, colors: [`hsl(${g.hue},100%,75%)`, '#ffffff', `hsl(${g.hue},90%,60%)`], ringGrow: 170 });
+    if (!(this.C && this.C.wordDone(L.wordsDone))) {
+      FX.burst(m.x + 10, m.y, { n: 12, speed: 280, size: 8, g: 0, colors: [`hsl(${g.hue},100%,75%)`, '#ffffff', `hsl(${g.hue},90%,60%)`], ringGrow: 170 });
+      Sound.gem();
+    }
     L.wordsDone++; L.gemsGot++; L.wi++; L.note = 0;
-    Sound.gem();
     const chip = $('.chip.gems', this.el);
     chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
   },
@@ -148,7 +160,9 @@ App.register('level', {
   combo(n) {
     const m = this.d.mouth();
     FX.text(m.x + 130, Math.max(110, m.y - 70), `${n} in a row`, '#ffc23d', 34);
-    Sound.milestone(); Sound.fire();
+    Sound.milestone();
+    if (this.C) return;            // in a fight, fire is a power she casts herself
+    Sound.fire();
     this.d.jawTarget = 1;
     let k = 0;
     const iv = setInterval(() => {
@@ -185,13 +199,16 @@ App.register('level', {
     const done = L.phase === 'done';
     Scene.setSpeed(done ? 620 : 46 + Math.min(6, L.kps) * 115);
     Scene.setHeat(done ? 1 : L.heat);
-    Sound.setEnergy(L.phase === 'intro' ? 0.1 : done ? (this.calm ? 0.15 : Math.max(0.6, L.heat)) : 0.16 + L.heat * 0.84);
+    const base = this.C && this.C.bossOn() ? 0.5 : 0.16;
+    Sound.setEnergy(L.phase === 'intro' ? 0.1 : done ? (this.calm ? 0.15 : Math.max(0.6, L.heat)) : base + L.heat * (1 - base));
+    if (this.C) this.C.tick(dt);
     this.flowEl.style.width = (L.heat * 100) + '%';
     this.el.style.setProperty('--heat', L.heat.toFixed(2));
 
     // steer the dragon: it weaves from shard to shard, and loops then streaks away at the end
     const hx = this.hx(), nextGem = this.gemList[L.wordsDone], flow = clamp(Scene.speed * 0.95, 80, 720);
-    let tx = hx + Math.min(46, L.kps * 9), ty = nextGem ? nextGem.y : 190;
+    const aim = this.C && !done ? this.C.aimY() : null;
+    let tx = hx + Math.min(46, L.kps * 9), ty = aim != null ? aim : nextGem ? nextGem.y : 190;
     if (done) {
       this.doneT += dt;
       const u = this.doneT / 0.95;
@@ -206,6 +223,7 @@ App.register('level', {
     for (let i = L.wordsDone; i < Math.min(this.gemList.length, L.wordsDone + 7); i++) {
       const g = this.gemList[i], x = hx + 56 + (g.D - L.d);
       if (x > App.W + 60) break;
+      if (this.C && this.C.hides(i)) continue;
       Scene.gems.push({ x, y: g.y, hue: g.hue, s: 1.1, a: done ? 0 : 1, phase: i });
     }
     if (h.y < 96) { h.y = 96; d.vy = Math.max(0, d.vy); }
@@ -214,6 +232,7 @@ App.register('level', {
   pause() {
     const L = this.L;
     if (L.phase === 'done') return;
+    if (this.C) this.C.closeCast();
     L.lastT = 0; Sound.click();
     App.modal(`<div class="modal"><button class="btn icon x" data-act="resume" aria-label="Close">${ic('close')}</button><div class="kicker">Paused</div><h2>Take a breath</h2><p>Your dragon will hold position.</p>
       <div class="row"><button class="btn" data-act="map">${ic('map')} Map</button><button class="btn" data-act="again">${ic('retry')} Restart</button>
@@ -230,7 +249,9 @@ App.register('level', {
 
     const acc = L.first / L.total, pct = Math.floor(acc * 100);
     const wpm = Math.max(1, Math.round((L.total / 5) / (Math.max(L.activeMs, 2000) / 60000)));
-    const stars = pct >= 98 ? 3 : pct >= 95 ? 2 : pct >= 90 ? 1 : 0;
+    const fight = this.C ? this.C.summary() : null;
+    let stars = pct >= 98 ? 3 : pct >= 95 ? 2 : pct >= 90 ? 1 : 0;
+    if (fight && fight.downed) stars = Math.min(stars, 1);
     const rec = S.levels[id] || (S.levels[id] = { stars: 0, bestAcc: 0, bestWpm: 0, plays: 0 });
     const firstClear = stars > 0 && rec.stars === 0, worldWasDone = Store.worldDone(level.world);
     const newBest = stars > 0 && rec.stars > 0 && pct > rec.bestAcc;
@@ -242,6 +263,9 @@ App.register('level', {
     if (stars) {
       coins = Math.round(L.gemsGot * 0.5) + stars * 5;
       if (firstClear) { coins += 10; notes.push('first clear'); }
+      if (fight && fight.bossBeaten) { coins += 15; notes.push('boss beaten'); }
+      if (fight && !fight.downed && fight.hits === 0) { coins += 5; notes.push('untouched'); }
+      if (fight && fight.fierce) { coins += Math.ceil(coins * 0.25); notes.push('fierce bonus'); }
     }
     const streakBonus = Store.touchStreak();
     if (streakBonus) { coins += streakBonus; notes.push(S.streak.count > 1 ? `${S.streak.count} day streak` : 'first flight today'); }
@@ -257,13 +281,16 @@ App.register('level', {
     }
     if (Store.stage() > S.seenStage) { events.push({ type: 'grow', before: S.seenStage }); S.seenStage = Store.stage(); }
     Store.save();
-    App.later(() => this.results({ pct, wpm, stars, coins, notes, newBest, events }), 1500);
+    App.later(() => this.results({ pct, wpm, stars, coins, notes, newBest, events, fight }), 1500);
   },
 
   results(r) {
     const L = this.L, level = this.level, next = LEVELS[this.idx + 1], pass = r.stars > 0;
     const speed = SPEED_NAMES.filter(([n]) => r.wpm >= n).pop()[1];
-    const title = r.stars === 3 ? 'Flawless' : r.stars === 2 ? 'Great flying' : r.stars === 1 ? 'Level cleared' : 'So close';
+    const f = r.fight, title = f && f.downed && pass ? 'Survived' : r.stars === 3 ? 'Flawless' : r.stars === 2 ? 'Great flying' : r.stars === 1 ? 'Level cleared' : 'So close';
+    const fourth = !f ? `<b>${L.gemsGot}</b><span>shards caught</span>`
+      : f.boss ? `<b>${f.bossBeaten ? 'Won' : 'Lost'}</b><span>${esc(f.boss)}<br>${f.hits} ${f.hits === 1 ? 'hit' : 'hits'} taken</span>`
+      : `<b>${f.kills}</b><span>enemies beaten<br>${f.hits} ${f.hits === 1 ? 'hit' : 'hits'} taken</span>`;
     const goNext = () => {
       const ev = r.events.shift();
       if (ev) { Celebrate[ev.type](ev, goNext); return; }
@@ -276,11 +303,12 @@ App.register('level', {
     const wrap = App.modal(`<div class="modal result"><div class="kicker">${esc(level.title)}</div><h2>${title}${r.newBest ? '<span class="badge-new">NEW BEST</span>' : ''}</h2>
       <div class="stars">${[0, 1, 2].map(i => `<div class="slot">${ic('starOff')}${i < r.stars ? ic('star', 'won') : ''}</div>`).join('')}</div>
       ${pass ? '' : `<p>You scored <b>${r.pct}%</b>. A star needs 90%.<br>Slow down and aim for the glowing key. You are close.</p>`}
+      ${pass && f && f.downed ? '<p>Your dragon was knocked back, so this run is capped at one star.<br>Replay it without losing all your life to win all three.</p>' : ''}
       <div class="stats">
         <div class="stat ${r.pct >= 90 ? 'good' : ''}"><b>${r.pct}%</b><span>accuracy</span></div>
         <div class="stat"><b>${r.wpm}</b><span>words a minute<br>${speed}</span></div>
         <div class="stat"><b>${L.best}</b><span>best streak</span></div>
-        <div class="stat"><b>${L.gemsGot}</b><span>shards caught</span></div>
+        <div class="stat">${fourth}</div>
       </div>
       <div class="earn">${ic('shard')} +<span class="earn-n">0</span>${r.notes.length ? `<small>${esc(r.notes.join(', '))}</small>` : ''}</div>
       <div class="row">
@@ -318,6 +346,7 @@ const Celebrate = {
     const look = { zoom: [1.5, 1.3, 1.1, 0.95][Store.stage()] }; look[field] = r.id;
     this.show(`<div class="modal unlock"><div class="kicker">${ev.world.name} complete</div><h2>New ${r.kind}: ${it.name}</h2>
       ${App.dv(look)}
+      ${(() => { const m = MOVES.find(x => x.world === ev.world.id); return m ? `<p>New power: <b>${m.name}</b>. It ${m.text}.</p>` : ''; })()}
       <div class="row"><button class="btn" data-act="later">Keep my look</button><button class="btn primary" data-act="equip">Equip it</button></div></div>`, cb,
     a => { if (a === 'equip') { S.pet[field] = r.id; Store.save(); Sound.equip(); } });
   },

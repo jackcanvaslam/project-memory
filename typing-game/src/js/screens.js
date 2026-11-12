@@ -129,6 +129,8 @@ App.register('den', {
     'Index fingers rest on F and J. Feel for the small bumps.',
     'Ten minutes a day is enough to get quick.',
     'Three stars need 98% accuracy. Replay a level to chase them.',
+    'In a fight, one slip is free. Slow down on the next key.',
+    'Mana full? Press Enter and type the power word.',
   ],
   enter(el, params = {}) {
     const next = Store.nextLevel();
@@ -164,6 +166,9 @@ App.register('den', {
         <div class="kicker">${allDone ? 'All levels cleared' : 'Next flight'}</div>
         <h4>${esc(next.title)}</h4><p>World ${next.world} · Level ${n} · ${WORLDS[next.world - 1].skill}</p>
         <div class="stars">${[0, 1, 2].map(i => ic(i < got ? 'star' : 'starOff')).join('')}</div>
+        <div class="kicker" style="margin-top:16px">Difficulty</div>
+        <div class="seg">${Object.keys(DIFFICULTY).map(k => `<button class="${S.settings.difficulty === k ? 'on' : ''}" data-act="diff" data-id="${k}">${DIFFICULTY[k].name}</button>`).join('')}</div>
+        <p class="seg-note">${DIFFICULTY[S.settings.difficulty].text}</p>
       </div>
       <div class="lair-actions">
         <button class="btn" data-act="map">${ic('map')} Map</button>
@@ -173,9 +178,10 @@ App.register('den', {
         <button class="btn" data-act="parent">${ic('chart')} Stats</button>
       </div>`;
   },
-  act(a) {
+  act(a, b) {
     const S = Store.get();
-    if (a === 'play') { Sound.click(); App.go('level', { id: Store.nextLevel().id }); }
+    if (a === 'diff') { S.settings.difficulty = b.dataset.id; Store.save(); Sound.pop(); this.render(); }
+    else if (a === 'play') { Sound.click(); App.go('level', { id: Store.nextLevel().id }); }
     else if (a === 'map') { Sound.click(); App.go('map'); }
     else if (a === 'forge') { Sound.click(); Forge.open(() => { this.d.setLook(Object.assign(DragonViews.look({ dataset: {} }), { size: [1.8, 1.5, 1.3, 1.15][Store.stage()] })); this.render(); }); }
     else if (a === 'parent') { Sound.click(); App.go('parent'); }
