@@ -254,3 +254,4 @@ const SPEED_NAMES = [[0, 'Warming up'], [6, 'Steady'], [10, 'Quick'], [15, 'Swif
 /* Stars a dragon needs to grow to each stage */
 const GROW_AT = [0, 12, 34, 62];
 const STAGE_NAMES = ['Hatchling', 'Wyrmling', 'Drake', 'Elder dragon'];
+

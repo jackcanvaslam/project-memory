@@ -2,60 +2,92 @@
    and a clean streak builds "flow", which drives the music and the glow. */
 'use strict';
 
+/* Position is derived from saved text, never from an unrelated regenerated lesson. */
+const LessonRun = {
+  ends(lines) { return lines.map(line => { const ends = []; for (let i = 0; i < line.length; i++) if (line[i] === ' ') ends.push(i + 1); ends.push(line.length); return ends; }); },
+  position(lines, li, pos) {
+    const ends = this.ends(lines);
+    return { done: lines.slice(0, li).reduce((n, line) => n + line.length, 0) + pos,
+      wi: ends[li].filter(n => n <= pos).length,
+      wordsDone: ends.slice(0, li).reduce((n, line) => n + line.length, 0) + ends[li].filter(n => n <= pos).length };
+  },
+  stars(pct, recovery = false) { return recovery ? (pct >= 90 ? 1 : 0) : pct >= 98 ? 3 : pct >= 95 ? 2 : pct >= 90 ? 1 : 0; },
+};
+
 App.register('level', {
   GAP: 250,                      // distance between shards, in pixels
   CH: 29,                        // width of one character in the typing line
   MILESTONES: [10, 25, 50, 75, 100, 150, 200, 300],
 
-  enter(el, { id }) {
+  enter(el, { id, route = 0, challenge = false, resume = false, recovery = false, repairLines = null, attempt = null }) {
     const S = Store.get();
     const idx = Content.levelIndex(id), level = LEVELS[idx], world = WORLDS[level.world - 1];
+    const saved = resume ? Store.getCheckpoint(id) : null;
+    this.route = saved ? saved.route : route;
+    this.recovery = saved ? saved.recovery : recovery;
+    this.attempt = saved ? saved.attempt : attempt;
+    this.challenge = !this.recovery && Combat.on(idx, saved ? saved.challenge : challenge);
+    this.mission = Missions.get(id, this.route);
     this.level = level; this.idx = idx; this.t = 0; this.doneT = 0; this.calm = false;
     Scene.setTheme(world.theme); Scene.setHorizon(-250); Scene.setSpeed(40);
     Sound.music(world.theme); Sound.setEnergy(0.1);
 
-    const lines = Content.build(id, Store.weakKeys(), { pet: S.pet.name, kid: S.kid });
-    this.wordEnds = lines.map(line => { const ends = []; for (let i = 0; i < line.length; i++) if (line[i] === ' ') ends.push(i + 1); ends.push(line.length); return ends; });
+    const lines = saved ? saved.lines : repairLines || Content.build(id, Store.weakKeys(), { pet: S.pet.name, kid: S.kid });
+    this.wordEnds = LessonRun.ends(lines);
     const wordsTotal = this.wordEnds.reduce((t, e) => t + e.length, 0);
     const hues = { meadow: [170, 300, 60, 200], peaks: [190, 50, 320, 130], cave: [50, 185, 320, 95], castle: [45, 190, 330, 130], summit: [130, 190, 50, 320] }[world.theme];
     this.gemList = Array.from({ length: wordsTotal }, (_, i) => ({ D: (i + 1) * this.GAP, y: 196 + Math.sin(i * 1.9) * 44, hue: hues[i % hues.length] }));
     this.L = { lines, li: 0, pos: 0, wi: 0, err: false, total: lines.reduce((t, l) => t + l.length, 0), done: 0, first: 0, errors: 0,
-      streak: 0, best: 0, activeMs: 0, lastT: 0, phase: 'intro', gemsGot: 0, wordsDone: 0, wordsTotal, note: 0, kps: 0, d: 0, heat: 0, idle: 0 };
+      streak: 0, best: 0, activeMs: 0, lastT: 0, phase: 'intro', gemsGot: 0, wordsDone: 0, wordsTotal, note: 0, kps: 0, d: 0, heat: 0, idle: 0, missed: {}, segments: [] };
+    if (saved) {
+      Object.assign(this.L, saved.progress, LessonRun.position(lines, saved.progress.li, saved.progress.pos));
+      this.L.gemsGot = this.L.wordsDone; this.L.d = this.L.wordsDone * this.GAP;
+      this.L.lastT = 0; this.L.phase = 'intro';
+    }
 
     const n = Store.worldLevels(level.world).indexOf(level) + 1;
-    const fight = Combat.on(idx), foe = FOE_INFO[world.theme];
+    const fight = this.challenge, foe = FOE_INFO[world.theme];
     const tip = fight
       ? (BOSS_LEVELS.has(level.id) ? `<b>Boss: ${foe.boss}.</b> Every word you finish hurts it.` : `<b>${foe.name}</b> ride the words. Finish a word to destroy its enemy.`)
-        + ` One slip is free. Slip twice on a word and it strikes.${S.settings.difficulty === 'fierce' ? ' On Fierce it also strikes if you take too long.' : ''}<br>Correct keys fill your mana. When it is full, press <b>Enter</b> to cast a power.`
-      : level.world === 1 ? 'Rest your fingers on <b>A S D F</b> and <b>J K L ;</b> and keep your eyes on the screen.' : 'Stars are for accuracy, not speed. A clean streak builds the music.';
+        + ` Two different slips on one word let it strike.${(saved && saved.combat ? saved.combat.fierce : S.settings.difficulty === 'fierce') ? ' Fierce also has a word timer.' : ''} Full mana? Press <b>Enter</b> for a power.`
+      : this.recovery ? 'A short practice for the keys that need another try. Reach <b>90% accuracy</b> to earn one star and continue.'
+      : 'No timer and no attacks. Feel the bumps on <b>F</b> and <b>J</b>. Follow the finger guide, one key at a time.';
     el.innerHTML = `<div class="edge"></div><div class="lv-progress"><i></i></div>
       <div class="lv-top">
         <button class="btn icon" data-act="pause" aria-label="Pause">${ic('pause')}</button>
-        <div class="hud-title">${esc(level.title)}<small>World ${level.world} · Level ${n}</small></div>
+        <div class="hud-title">${esc(level.title)}<small>World ${level.world} · Level ${n} · ${this.recovery ? 'Focused practice' : fight ? 'Optional battle' : 'Learning flight'}</small></div>
         <div style="flex:1"></div>
         <div class="chip acc" title="Accuracy"><small>acc</small><span>100%</span></div>
         <div class="chip streak" title="Right keys in a row">${ic('flame')}<span>0</span></div>
         <div class="chip gems" title="Shards">${ic('shard')}<span>0</span></div>
         ${App.sysButtons()}
       </div>
+      <div class="mission-status"><strong>${esc(this.mission.title)}</strong><span>${esc(this.mission.goal)}</span></div>
       <div class="flow"><span>Flow</span><div><i></i></div></div>
       <div class="lv-col">
         <div class="prompt panel"><div class="next-line"></div></div>
         <div class="kb-panel panel">${Keyboard.markup()}</div>
       </div>
-      <div class="lv-banner"><div class="kicker">World ${level.world} · Level ${n}</div><h2>${esc(level.title)}</h2>${LevelInfo.html(level)}
+      <div class="lv-banner"><div class="kicker">${saved ? 'Your flight is saved' : this.recovery ? 'Try just the tricky parts' : 'Your mission'}</div><h2>${esc(this.mission.title)}</h2><p>${esc(this.mission.goal)}</p>
         <p>${tip}</p>
-        <div class="go">Press <span class="keycap">SPACE</span> to start</div></div>`;
+        <div class="go">Press <span class="keycap">SPACE</span> to ${saved ? 'resume' : 'start'}</div></div>`;
     this.prompt = $('.prompt', el); this.nextEl = $('.next-line', el); this.flowEl = $('.flow i', el);
     this.kb = Keyboard.create(el);
     this.kb.setLearned(Content.keysUpTo(idx));
+    this.kb.setMemoryHints(S.settings.memoryHints && Store.levelStars(id) > 0 && !this.recovery);
     el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && b.dataset.act === 'pause') this.pause(); });
     el.classList.add('intro');
     this.d = App.myDragon(); this.d.place(this.hx(), 200);
     this.C = fight ? new Combat(this) : null;
+    if (this.C && saved && saved.combat) this.C.restore(saved.combat);
     if (this.C && this.C.boss) Sound.music('boss');
-    Scene.onDraw = ctx => { if (this.C) this.C.draw(ctx, 'back'); this.d.draw(ctx); if (this.C) this.C.draw(ctx, 'front'); };
+    Scene.onDraw = ctx => { Missions.draw(ctx, this.mission, this.L.done / this.L.total, this.t); if (this.C) this.C.draw(ctx, 'back'); this.d.draw(ctx); if (this.C) this.C.draw(ctx, 'front'); };
+    this.onVisibility = () => { if (document.hidden && this.L.phase === 'play') { this.checkpoint(); if (!App.hasModal) this.pause(true); } };
+    this.onPageLeave = () => this.checkpoint();
+    document.addEventListener('visibilitychange', this.onVisibility);
+    window.addEventListener('pagehide', this.onPageLeave);
     this.renderLine(false);
+    this.updateHud();
     this.tick(0);
   },
   hx() { return App.W / 2 - 250; },
@@ -67,17 +99,21 @@ App.register('level', {
     div.innerHTML = '<i class="caret"></i>' + [...line].map(ch => `<span class="ch${ch === ' ' ? ' sp' : ''}">${ch === ' ' ? '' : esc(ch)}</span>`).join('');
     this.prompt.insertBefore(div, this.nextEl);
     this.lineEl = div; this.tiles = $$('.ch', div); this.caret = $('.caret', div);
-    this.tiles[0].classList.add('cur');
+    this.tiles.forEach((tile, i) => { if (i < L.pos) tile.classList.add('done'); });
+    this.tiles[L.pos].classList.add('cur');
+    this.caret.style.transform = `translateX(${L.pos * this.CH}px)`;
     const next = L.lines[L.li + 1];
     this.nextEl.innerHTML = next ? `<small>Next</small>${esc(next)}` : '<small>Last line</small>';
-    if (aim) this.kb.target(line[0]);
+    if (aim) this.kb.target(line[L.pos]);
   },
 
   start() {
     const b = $('.lv-banner', this.el); if (b) b.remove();
     this.el.classList.remove('intro');
     this.L.phase = 'play'; Sound.whoosh();
-    this.kb.target(this.L.lines[0][0]);
+    this.L.lastT = 0;
+    this.kb.target(this.L.lines[this.L.li][this.L.pos]);
+    this.checkpoint();
   },
 
   key(e) {
@@ -122,28 +158,37 @@ App.register('level', {
       L.li++; L.pos = 0; L.wi = 0;
       if (L.li >= L.lines.length) { this.updateHud(); this.finish(); return; }
       this.renderLine();
+      this.checkpoint();
     } else {
       this.tiles[L.pos].classList.add('cur');
       this.caret.style.transform = `translateX(${L.pos * this.CH}px)`;
       this.kb.target(L.lines[L.li][L.pos]);
     }
     this.updateHud();
+    if (L.done % 8 === 0) this.checkpoint();
   },
 
   miss(typed, exp) {
     const L = this.L;
-    if (!L.err) { L.err = true; L.errors++; Store.noteKey(exp, false); }
-    L.streak = 0; L.note = 0; L.heat *= 0.5;
+    const firstSlip = !L.err;
+    if (firstSlip) {
+      L.err = true; L.errors++; Store.noteKey(exp, false);
+      L.missed[exp] = (L.missed[exp] || 0) + 1;
+      const line = L.lines[L.li], start = line.lastIndexOf(' ', Math.max(0, L.pos - 1)) + 1;
+      const space = line.indexOf(' ', L.pos), segment = line.slice(start, space < 0 ? line.length : space).trim();
+      if (segment && !L.segments.includes(segment) && L.segments.length < 30) L.segments.push(segment);
+      L.streak = 0; L.note = 0;
+      Sound.miss();
+      if (this.C) this.C.slip();
+    }
     const tile = this.tiles[L.pos], caret = this.caret, line = this.lineEl;
     tile.classList.add('err'); caret.classList.add('bad');
-    line.classList.remove('jolt'); void line.offsetWidth; line.classList.add('jolt');
     setTimeout(() => { tile.classList.remove('err'); caret.classList.remove('bad'); }, 280);
-    Scene.hit(); this.d.zap = 1; this.d.vy += 240;
-    Sound.miss();
-    if (this.C) this.C.slip();
+    this.kb.reveal();
     if (exp !== exp.toLowerCase() && typed === exp.toLowerCase()) App.toast('Hold Shift to make a capital letter');
     else if (exp === '?' && typed === '/') App.toast('Hold Shift and press / to make a question mark');
     this.updateHud();
+    if (firstSlip) this.checkpoint();
   },
 
   wordDone() {
@@ -185,6 +230,7 @@ App.register('level', {
 
   tick(dt) {
     const L = this.L, d = this.d;
+    if (document.hidden || App.hasModal) { L.lastT = 0; return; }
     this.t += dt;
     L.kps *= Math.exp(-dt);
     L.idle += dt;
@@ -229,16 +275,38 @@ App.register('level', {
     if (h.y < 96) { h.y = 96; d.vy = Math.max(0, d.vy); }
   },
 
-  pause() {
+  checkpoint() {
+    const L = this.L;
+    if (!L || L.phase !== 'play' || L.li >= L.lines.length) return;
+    const progress = {};
+    for (const key of ['li', 'pos', 'err', 'first', 'errors', 'streak', 'best', 'activeMs', 'missed', 'segments']) progress[key] = L[key];
+    Store.setCheckpoint({ v: 1, id: this.level.id, route: this.route, challenge: this.challenge,
+      recovery: this.recovery, attempt: this.attempt, lines: L.lines, progress, combat: this.C ? this.C.snapshot() : null });
+  },
+
+  exit() {
+    if (this.C) { this.C.closeCast(); Sound.setTension(0); Scene.slowmo = false; }
+    this.checkpoint();
+    if (this.kb) this.kb.destroy();
+    document.removeEventListener('visibilitychange', this.onVisibility);
+    window.removeEventListener('pagehide', this.onPageLeave);
+  },
+
+  pause(quiet = false) {
     const L = this.L;
     if (L.phase === 'done') return;
     if (this.C) this.C.closeCast();
-    L.lastT = 0; Sound.click();
-    App.modal(`<div class="modal"><button class="btn icon x" data-act="resume" aria-label="Close">${ic('close')}</button><div class="kicker">Paused</div><h2>Take a breath</h2><p>Your dragon will hold position.</p>
-      <div class="row"><button class="btn" data-act="map">${ic('map')} Map</button><button class="btn" data-act="again">${ic('retry')} Restart</button>
+    this.checkpoint(); this.kb.clear();
+    L.lastT = 0; if (!quiet) Sound.click();
+    const resume = () => { L.lastT = 0; if (L.phase === 'play') this.kb.target(L.lines[L.li][L.pos]); };
+    App.modal(`<div class="modal"><button class="btn icon x" data-act="resume" aria-label="Close">${ic('close')}</button><div class="kicker">Paused</div><h2>Take a breath</h2><p>${Store.isMemoryOnly() ? 'This browser cannot save to disk. Keep this tab open, or export a backup from Parent settings.' : 'Your place is saved in this browser. Your dragon will wait.'}</p>
+      <div class="row"><button class="btn" data-act="den">${ic('home')} Save & rest</button><button class="btn" data-act="again">${ic('retry')} Restart</button>
       <button class="btn primary" data-act="resume">${ic('play')} Resume</button></div></div>`,
-    { act: a => { if (a === 'map') App.go('map', { world: this.level.world }); else if (a === 'again') App.go('level', { id: this.level.id }); else App.closeModal(); },
-      key: e => { if (e.key === 'Enter' || e.key === ' ') App.closeModal(); } });
+    { act: a => { if (a === 'den') App.go('den'); else if (a === 'again') {
+        this.L.phase = 'abandoned'; Store.clearCheckpoint(this.level.id); Store.save();
+        App.go('level', { id: this.level.id, route: this.route, challenge: this.challenge, recovery: this.recovery, repairLines: this.recovery ? this.L.lines : null, attempt: this.attempt });
+      } else App.closeModal(); },
+      key: e => { if (e.key === 'Enter' || e.key === ' ') App.closeModal(); }, onClose: resume });
   },
 
   finish() {
@@ -250,29 +318,44 @@ App.register('level', {
     const acc = L.first / L.total, pct = Math.floor(acc * 100);
     const wpm = Math.max(1, Math.round((L.total / 5) / (Math.max(L.activeMs, 2000) / 60000)));
     const fight = this.C ? this.C.summary() : null;
-    let stars = pct >= 98 ? 3 : pct >= 95 ? 2 : pct >= 90 ? 1 : 0;
-    if (fight && fight.downed) stars = Math.min(stars, 1);
+    const stars = LessonRun.stars(pct, this.recovery);
     const rec = S.levels[id] || (S.levels[id] = { stars: 0, bestAcc: 0, bestWpm: 0, plays: 0 });
     const firstClear = stars > 0 && rec.stars === 0, worldWasDone = Store.worldDone(level.world);
-    const newBest = stars > 0 && rec.stars > 0 && pct > rec.bestAcc;
-    rec.plays++; rec.stars = Math.max(rec.stars, stars); rec.bestAcc = Math.max(rec.bestAcc, pct);
-    if (stars) rec.bestWpm = Math.max(rec.bestWpm, wpm);
+    const newBest = !this.recovery && stars > 0 && rec.stars > 0 && pct > rec.bestAcc;
+    if (!this.recovery) {
+      rec.plays++; rec.bestAcc = Math.max(rec.bestAcc, pct);
+      if (stars) rec.bestWpm = Math.max(rec.bestWpm, wpm);
+    } else rec.recoveryAcc = Math.max(rec.recoveryAcc || 0, pct);
+    rec.stars = Math.max(rec.stars, stars);
 
     const notes = [];
-    let coins = 3;
+    let coins = 0;
     if (stars) {
-      coins = Math.round(L.gemsGot * 0.5) + stars * 5;
+      coins = this.recovery ? 5 : Math.round(L.gemsGot * 0.5) + stars * 5;
       if (firstClear) { coins += 10; notes.push('first clear'); }
       if (fight && fight.bossBeaten) { coins += 15; notes.push('boss beaten'); }
       if (fight && !fight.downed && fight.hits === 0) { coins += 5; notes.push('untouched'); }
       if (fight && fight.fierce) { coins += Math.ceil(coins * 0.25); notes.push('fierce bonus'); }
     }
-    const streakBonus = Store.touchStreak();
+    const streakBonus = stars ? Store.touchStreak() : 0;
     if (streakBonus) { coins += streakBonus; notes.push(S.streak.count > 1 ? `${S.streak.count} day streak` : 'first flight today'); }
     Store.addCoins(coins);
-    S.history.push({ t: Date.now(), id, acc: pct, wpm, secs: Math.round(L.activeMs / 1000), stars });
+    const secs = Math.round(L.activeMs / 1000);
+    if (!this.recovery) {
+      const t = Date.now();
+      S.history.push({ t, id, acc: pct, wpm, secs, stars });
+      this.attempt = { t, originalPct: pct, originalWpm: wpm, originalSecs: secs };
+    } else {
+      const original = S.history.find(item => item.t === this.attempt.t && item.id === id);
+      if (original) { original.recoveryAcc = pct; original.stars = Math.max(original.stars, stars); original.secs += secs; }
+    }
     if (S.history.length > 300) S.history.shift();
-    S.totalSecs += Math.round(L.activeMs / 1000);
+    S.totalSecs += secs;
+
+    if (stars) {
+      S.adventure.completed++;
+      S.adventure.sessionCount++;
+    }
 
     const events = [];
     if (!worldWasDone && Store.worldDone(level.world)) {
@@ -280,6 +363,13 @@ App.register('level', {
       if (level.world === 5) events.push({ type: 'champion' });
     }
     if (Store.stage() > S.seenStage) { events.push({ type: 'grow', before: S.seenStage }); S.seenStage = Store.stage(); }
+    Store.clearCheckpoint(id);
+    if (!stars) {
+      this.repairLines = Content.recovery(id, L.missed, L.segments, L.lines);
+      // An unfinished focused retry survives closing the tab on this result.
+      Store.setCheckpoint({ v: 1, id, route: this.route, challenge: false, recovery: true, attempt: this.attempt,
+        lines: this.repairLines, progress: { li: 0, pos: 0, err: false, first: 0, errors: 0, streak: 0, best: 0, activeMs: 0, missed: {}, segments: [] }, combat: null });
+    }
     Store.save();
     App.later(() => this.results({ pct, wpm, stars, coins, notes, newBest, events, fight }), 1500);
   },
@@ -287,23 +377,32 @@ App.register('level', {
   results(r) {
     const L = this.L, level = this.level, next = LEVELS[this.idx + 1], pass = r.stars > 0;
     const speed = SPEED_NAMES.filter(([n]) => r.wpm >= n).pop()[1];
-    const f = r.fight, title = f && f.downed && pass ? 'Survived' : r.stars === 3 ? 'Flawless' : r.stars === 2 ? 'Great flying' : r.stars === 1 ? 'Level cleared' : 'So close';
+    const f = r.fight, title = this.recovery && pass ? 'You worked it out' : r.pct === 100 ? 'Flawless' : r.stars === 3 ? 'Brilliant flying' : r.stars === 2 ? 'Great flying' : r.stars === 1 ? 'Mission complete' : 'Let’s try the tricky keys';
+    const readyToRest = pass && Store.get().adventure.sessionCount >= 2;
     const fourth = !f ? `<b>${L.gemsGot}</b><span>shards caught</span>`
       : f.boss ? `<b>${f.bossBeaten ? 'Won' : 'Lost'}</b><span>${esc(f.boss)}<br>${f.hits} ${f.hits === 1 ? 'hit' : 'hits'} taken</span>`
       : `<b>${f.kills}</b><span>enemies beaten<br>${f.hits} ${f.hits === 1 ? 'hit' : 'hits'} taken</span>`;
+    const continueSession = () => { if (readyToRest) { Store.get().adventure.sessionCount = 0; Store.save(); } };
     const goNext = () => {
       const ev = r.events.shift();
       if (ev) { Celebrate[ev.type](ev, goNext); return; }
-      if (!next) App.go('map', { world: 5 });
-      else if (next.world !== level.world) App.go('map', { world: next.world });
-      else App.go('level', { id: next.id });
+      continueSession();
+      if (!next) App.go('den');
+      else App.go('briefing', { id: next.id, skipWarmup: true });
     };
-    const again = () => App.go('level', { id: level.id });
+    const again = () => { const ev = r.events.shift(); if (ev) { Celebrate[ev.type](ev, again); return; } continueSession(); App.go('briefing', { id: level.id, skipWarmup: true }); };
+    const battle = () => { const ev = r.events.shift(); if (ev) { Celebrate[ev.type](ev, battle); return; } continueSession(); App.go('level', { id: level.id, route: this.route, challenge: true }); };
+    const repair = () => App.go('level', { id: level.id, resume: true });
+    const rest = () => { const ev = r.events.shift(); if (ev) { Celebrate[ev.type](ev, rest); return; } Store.get().adventure.sessionCount = 0; Store.save(); App.go('den'); };
     const toMap = () => { const ev = r.events.shift(); if (ev) { Celebrate[ev.type](ev, toMap); return; } App.go('map', { world: level.world }); };
     const wrap = App.modal(`<div class="modal result"><div class="kicker">${esc(level.title)}</div><h2>${title}${r.newBest ? '<span class="badge-new">NEW BEST</span>' : ''}</h2>
       <div class="stars">${[0, 1, 2].map(i => `<div class="slot">${ic('starOff')}${i < r.stars ? ic('star', 'won') : ''}</div>`).join('')}</div>
-      ${pass ? '' : `<p>You scored <b>${r.pct}%</b>. A star needs 90%.<br>Slow down and aim for the glowing key. You are close.</p>`}
-      ${pass && f && f.downed ? '<p>Your dragon was knocked back, so this run is capped at one star.<br>Replay it without losing all your life to win all three.</p>' : ''}
+      <p class="mission-story">${esc(pass ? this.mission.success : 'Your mission progress is safe. Practice just the keys that were tricky, then continue.')}</p>
+      ${pass ? '' : `<p>You reached <b>${r.pct}%</b>. This short retry needs 90% to earn one star.<br>No need to repeat the whole mission.</p>`}
+      ${this.recovery && pass ? `<p>One star for <b>${r.pct}% on your focused retry</b>. Your full mission was ${this.attempt.originalPct}%. Replay the full mission any time for two or three stars.</p>` : ''}
+      ${pass && f && f.downed ? '<p>Your dragon is safe. Battle damage does not reduce your accuracy stars.</p>' : ''}
+      ${readyToRest ? '<p><b>Two missions complete.</b> Your adventure is saved. This is a good place to rest your hands.</p>' : ''}
+      ${pass ? `<p class="adventure-reward">${esc(Missions.rewardText(Store.get().adventure.completed))}</p>` : ''}
       <div class="stats">
         <div class="stat ${r.pct >= 90 ? 'good' : ''}"><b>${r.pct}%</b><span>accuracy</span></div>
         <div class="stat"><b>${r.wpm}</b><span>words a minute<br>${speed}</span></div>
@@ -313,11 +412,15 @@ App.register('level', {
       <div class="earn">${ic('shard')} +<span class="earn-n">0</span>${r.notes.length ? `<small>${esc(r.notes.join(', '))}</small>` : ''}</div>
       <div class="row">
         <button class="btn" data-act="map">${ic('map')} Map</button>
-        ${pass ? `<button class="btn" data-act="again">${ic('retry')} Again</button><button class="btn primary big" data-act="next">${next ? 'Next' : 'Finish'} ${ic('next')}</button>`
-          : `<button class="btn primary big" data-act="again">${ic('retry')} Try again</button>`}
+        ${pass ? `<button class="btn" data-act="again">${ic('retry')} Replay</button>
+          ${!this.challenge && Store.get().settings.difficulty !== 'calm' ? `<button class="btn" data-act="challenge">${ic('bolt')} Optional battle</button>` : ''}
+          <button class="btn ${readyToRest ? '' : 'primary'}" data-act="next">${next ? 'Next mission' : 'Visit den'} ${ic('next')}</button>
+          ${readyToRest ? '<button class="btn primary" data-act="rest">Save & rest</button>' : ''}`
+          : `<button class="btn primary big" data-act="repair">${ic('retry')} Practice tricky keys</button>`}
       </div></div>`,
-    { act: a => { Sound.click(); if (a === 'next') goNext(); else if (a === 'again') again(); else toMap(); },
-      key: e => { if (e.key === 'Enter') { Sound.click(); if (pass) goNext(); else again(); } } });
+    { act: a => { Sound.click(); if (a === 'next') goNext(); else if (a === 'again') again(); else if (a === 'repair') repair(); else if (a === 'rest') rest();
+        else if (a === 'challenge') battle(); else toMap(); },
+      key: e => { if (e.key === 'Enter') { Sound.click(); if (!pass) repair(); else if (readyToRest) rest(); else goNext(); } } });
 
     if (pass) { Sound.fanfare(); FX.confetti(30 + r.stars * 34); } else { this.calm = true; Sound.almost(); }
     $$('.won', wrap).forEach((s, i) => App.later(() => {
@@ -361,7 +464,8 @@ const Celebrate = {
     const S = Store.get();
     this.show(`<div class="modal unlock"><div class="kicker">Every world complete</div><h2>${esc(S.kid)}, typing champion</h2>
       ${App.dv({ color: 'gold', crest: 'halo', trail: 'prism', zoom: 0.95 })}
-      <p>You can touch type. Go back for three stars on every level, or chase a high score in Gem Storm.</p>
+      <p>You have explored every letter key. Keep building accuracy and using the finger guide, or try a familiar mission as a battle.</p>
       <div class="row"><button class="btn primary" data-act="ok">Continue</button></div></div>`, cb);
   },
 };
+

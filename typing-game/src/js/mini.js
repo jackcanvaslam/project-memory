@@ -139,3 +139,4 @@ App.register('mini', {
       key: e => { if (e.key === 'Enter') { App.closeModal(); this.begin(); } } });
   },
 });
+

@@ -184,3 +184,60 @@ const App = (() => {
   return { register, go, modal, closeModal, toast, pos, dv, myDragon, hud, sysButtons, countTo, refreshCoins, later, start,
     get W() { return W; }, get scale() { return scale; }, get screen() { return currentName; }, get hasModal() { return !!modalEl; } };
 })();
+
+
+/* Mission choice and an untimed, eight-key hand-position warmup. */
+'use strict';
+App.register('briefing', {
+  enter(el, {id,skipWarmup=false}={}) {
+    const level=LEVELS.find(l=>l.id===id)||Store.nextLevel();
+    if(!Store.levelOpen(level.id)){App.go('den');return;}
+    this.id=level.id;this.level=level;this.skipWarmup=skipWarmup;this.phase='choice';this.taps=0;
+    Scene.setTheme(WORLDS[level.world-1].theme);Scene.setHorizon(0);Scene.setSpeed(12);
+    Sound.music('home');Sound.setEnergy(.25);
+    el.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b)this.act(b.dataset.act,b);});
+    this.choose();
+  },
+  choose() {
+    const checkpoint=Store.getCheckpoint();
+    const replaces=checkpoint && checkpoint.id!==this.id;
+    this.el.innerHTML=`${App.hud({back:true,title:'Choose an adventure',sub:this.level.title})}
+      <div class="adventure-heading"><div class="kicker">Same keys · two paths</div><h2>Where shall we help today?</h2><p>Both missions practise ${esc(this.level.title)}. Choose the story you like.</p></div>
+      <div class="mission-choices">${[0,1].map(route=>{const m=Missions.get(this.id,route);return `<button class="mission-choice panel" data-act="choose" data-route="${route}"><span class="mission-symbol">${ic(['bridge','mend','chart'].includes(m.kind)?'map':'star')}</span><span class="kicker">Adventure ${route+1}</span><h3>${esc(m.title)}</h3><p>${esc(m.goal)}</p><span class="mission-cta">Choose this mission ${ic('next')}</span></button>`;}).join('')}</div>
+      <div class="adventure-footnote">${replaces ? 'Starting this mission replaces your unfinished checkpoint. Completed levels stay saved.' : this.skipWarmup ? 'One more little adventure. No timer in learning missions.' : 'A short F + J warmup, two missions, then a chance to rest. No timer in learning missions.'}</div>`;
+  },
+  warmup() {
+    this.phase='warmup';this.taps=0;
+    const S=Store.get();
+    this.el.innerHTML=`${App.hud({back:true,title:'Hands ready',sub:'Warmup · no score or timer'})}
+      <div class="warmup-heading panel"><div class="kicker">A little ritual before flying</div><h2>Find the bumps. Find your home.</h2><p>Left index on <b>F</b>. Right index on <b>J</b>. Rest your other fingers beside them.</p><p>Alternate the two index fingers to wake ${esc(S.pet.name||'your dragon')}.</p><div class="warmup-taps" aria-label="Warmup progress">${'<i></i>'.repeat(8)}</div><span class="warmup-note" role="status">8 gentle taps. Take your time.</span></div>
+      <div class="kb-dock panel">${Keyboard.markup()}</div>`;
+    this.kb=Keyboard.create(this.el);this.kb.setLearned('fj');this.kb.target('f');
+  },
+  act(a,b) {
+    if(a==='back'){Sound.click();App.go('den');}
+    else if(a==='choose' && this.phase==='choice'){
+      this.route=Number(b.dataset.route)===1?1:0;Sound.click();
+      if(this.skipWarmup)this.launch();else this.warmup();
+    }
+  },
+  launch(){App.go('level',{id:this.id,route:this.route});},
+  key(e) {
+    if(e.ctrlKey||e.altKey||e.metaKey)return;
+    if(e.key==='Escape'){this.act('back');return;}
+    if(this.phase==='choice'){
+      if(e.key==='1'||e.key==='2')this.act('choose',{dataset:{route:String(Number(e.key)-1)}});
+      return;
+    }
+    if(e.key.length!==1)return;
+    const want=this.taps%2?'j':'f',ok=e.key.toLowerCase()===want;
+    this.kb.press(e,ok);
+    if(!ok){$('.warmup-note',this.el).textContent=`Try ${want.toUpperCase()} with your ${want==='f'?'left':'right'} index finger. No points lost.`;return;}
+    this.taps++;Sound.key(this.taps,0);
+    $$('.warmup-taps i',this.el).forEach((el,i)=>el.classList.toggle('on',i<this.taps));
+    if(this.taps===8){this.launch();return;}
+    $('.warmup-note',this.el).textContent=`${8-this.taps} gentle tap${this.taps===7?'':'s'} to go.`;
+    this.kb.target(this.taps%2?'j':'f');
+  },
+  exit(){if(this.kb){this.kb.destroy();this.kb=null;}}
+});

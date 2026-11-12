@@ -328,3 +328,92 @@ input.text:focus { border-color: var(--cyan); outline: none; box-shadow: 0 0 22p
 .seg button:hover { color: #fff; } .seg button.on { background: rgb(var(--accent)); color: #050818; box-shadow: 0 0 16px rgba(var(--accent), .5); }
 .seg-note { margin: 10px 0 0 !important; font-size: 13px !important; line-height: 1.45; color: #b9c1ee !important; min-height: 56px; }
 .settings select { font: 600 15px var(--ui); color: var(--text); height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .25); background: #12163a; }
+
+
+/* Keep the learning guide large and together, without covering the adventure. */
+.kb-panel, .kb-dock { width: 1180px; padding: 10px 16px 12px; display: block; overflow: visible; }
+.keyboard-coach { --coach-color: #d3e5ff; width: 100%; }
+.coach-bar { min-height: 62px; display: flex; align-items: center; gap: 14px; padding: 0 2px 9px; border-bottom: 1px solid rgba(181, 203, 255, .16); margin-bottom: 10px; }
+.coach-key { flex: 0 0 55px; height: 52px; border-radius: 12px; display: grid; place-items: center; font: 800 29px var(--mono); color: #0a152c; background: var(--coach-color); box-shadow: inset 0 1px 0 #ffffff8a, 0 5px 15px #0003; }
+.coach-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.coach-title { font: 800 23px/1.1 var(--ui); text-transform: capitalize; color: var(--coach-color); }
+.coach-detail { font: 500 14px/1.25 var(--ui); color: #e2eaff; }
+.coach-anchors { flex: 0 0 232px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px 9px; }
+.coach-anchors > span { display: flex; align-items: center; justify-content: space-between; gap: 7px; color: #ffdfa0; font-size: 13px; font-weight: 700; }
+.coach-anchors b { display: grid; place-items: center; width: 30px; height: 30px; border: 2px solid #f5cd78; border-radius: 7px; background: #f5cd781c; font: 800 21px var(--mono); text-decoration: underline; text-underline-offset: 4px; }
+.coach-anchors small { grid-column: 1 / -1; font-size: 11px; text-align: center; letter-spacing: .05em; color: #d6d6e9; }
+.coach-help { flex: 0 0 auto; padding: 10px 12px; border: 1px solid #b9daff; border-radius: 9px; background: #203955; color: #f0f7ff; font: 700 14px var(--ui); cursor: pointer; }
+.coach-help[hidden] { display: none; }
+.coach-help:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.keyboard-hands { display: flex; align-items: flex-end; justify-content: center; gap: 12px; overflow: visible; }
+.keyboard-hands .kb { width: 744px; flex: 0 0 744px; gap: 4px; }
+.keyboard-hands .kb-row { height: 40px; gap: 4px; }
+.keyboard-hands .kb-row.num { height: 25px; }
+.keyboard-hands .kb-row.sp { height: 32px; }
+.keyboard-hands .key { width: 44px; font-size: 19px; border-radius: 7px; }
+.keyboard-hands .key.wide { font-size: 10px; }
+.keyboard-hands .kb-row.num .key { font-size: 12px; }
+.keyboard-hands .key.bump::after { bottom: 5px; height: 3px; width: 14px; margin-left: -7px; opacity: 1; }
+.keyboard-hands .key.home-anchor:not(.target):not(.down) { border: 2px solid #f5cd78; background: rgba(245, 205, 120, .12); color: #ffe4aa; box-shadow: 0 0 0 1px #f5cd7822; }
+.keyboard-hands .hand-box { width: 185px; flex: 0 0 185px; gap: 0; overflow: visible; }
+.keyboard-hands .hand { display: block; width: 185px; height: 180px; overflow: visible; }
+.keyboard-hands .finger-hint { height: 23px; padding: 0 9px; font-size: 12px; letter-spacing: .04em; }
+.keyboard-hands .hand .home-finger .fg-body { stroke: #f5cd78; stroke-width: 3.5; fill: #f5cd7817; }
+.keyboard-hands .hand .fg.use .fg-body { fill: var(--fc); stroke: #fff; }
+.keyboard-hands .hand-key { font: 800 18px var(--mono); fill: #e6eeff; pointer-events: none; }
+.keyboard-hands .hand-key.home-letter { fill: #ffdfa0; text-decoration: underline; }
+.keyboard-hands .hand-key.use { fill: #071525; }
+.keyboard-hands .hand-caption { font: 800 12px var(--ui); fill: #e2ecff; letter-spacing: .5px; }
+.keyboard-hands .hand-caption-sub { font: 600 9px var(--ui); fill: #b4c3df; letter-spacing: .7px; }
+.keyboard-hands .hand .fg.use { animation: none; }
+.keyboard-coach.awaiting-hint .coach-key { background: #2a405e; color: #e3efff; }
+.keyboard-coach.awaiting-hint .coach-title { color: #d8e9ff; }
+@media (prefers-reduced-motion: reduce) {
+  .keyboard-hands .key.target { animation: none; }
+}
+
+/* A little more breathing room around the new stories and companion rewards. */
+.adventure-heading {position:absolute;top:105px;left:10%;right:10%;text-align:center}
+.adventure-heading h2 {font-size:34px;margin:8px 0 10px;letter-spacing:-.02em}
+.adventure-heading p,.adventure-footnote {color:#c3d1ee;font-size:17px;line-height:1.5}
+.mission-choices {position:absolute;top:240px;left:50%;width:1020px;margin-left:-510px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.mission-choice {text-align:left;padding:28px 30px;min-height:310px;display:flex;flex-direction:column;align-items:flex-start;border:1px solid rgba(169,239,222,.35);transition:transform .18s,border-color .18s;background:linear-gradient(145deg,rgba(25,58,80,.97),rgba(14,24,53,.97))}
+.mission-choice:hover,.mission-choice:focus-visible {transform:translateY(-4px);border-color:#b8f2dd;outline:2px solid #b8f2dd;outline-offset:3px}
+.mission-symbol {font-size:26px;color:#f7d38f;margin-bottom:18px}
+.mission-choice h3 {font-size:25px;line-height:1.2;margin:8px 0 10px}
+.mission-choice p {font-size:16px;line-height:1.6;color:#cbd9ee;margin:0 0 20px}
+.mission-cta {margin-top:auto;font-size:15px;font-weight:700;color:#c3f8e5;display:flex;align-items:center;gap:8px}
+.adventure-footnote {position:absolute;left:0;right:0;bottom:72px;text-align:center}
+.warmup-heading {position:absolute;top:100px;left:50%;transform:translateX(-50%);width:910px;text-align:center;padding:22px 28px}
+.warmup-heading h2 {font-size:30px;margin:6px 0 10px}
+.warmup-heading p {font-size:17px;line-height:1.45;color:#d7e3f1;margin:6px 0}
+.warmup-heading b {color:#ffe0a1}
+.warmup-taps {display:flex;gap:12px;justify-content:center;margin:16px 0 10px}
+.warmup-taps i {width:18px;height:8px;border-radius:6px;background:#364960}
+.warmup-taps i.on {background:#b5f4dd;box-shadow:0 0 12px #b5f4dd66}
+.warmup-note {font-size:14px;color:#b5f4dd}
+.scr-briefing .kb-dock {bottom:14px}
+.lair-next .adventure-count {display:inline-block;margin:12px 0 0;color:#b5f4dd;font-size:13px}
+.lair-next .btn {margin-top:14px;width:100%;height:46px}
+.lair-next .checkpoint-note {font-size:13px;line-height:1.5;margin-top:10px;color:#d9e5ee}
+.companion-panel {position:absolute;left:50%;bottom:112px;transform:translateX(-50%);width:525px;padding:15px 20px;text-align:center;z-index:4;background:rgba(13,26,47,.9)}
+.companion-panel p {margin:0 0 12px;font-size:16px;color:#e3f3f4;line-height:1.4}
+.companion-panel .trick-buttons {display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.companion-panel .btn {height:34px;font-size:11px;padding:0 12px}
+.companion-panel small {display:block;color:#b9d4e0;font-size:12px;line-height:1.4;margin-top:10px}
+.result .mission-success {font-size:16px;line-height:1.45;color:#beeedd}
+.mission-status {position:absolute;left:26px;top:86px;width:510px;z-index:2;border-left:3px solid #b5f4dd;padding:10px 16px;background:linear-gradient(90deg,rgba(10,27,45,.88),rgba(10,27,45,.2));border-radius:0 12px 12px 0;pointer-events:none}
+.mission-status strong {display:block;font-size:19px;line-height:1.25;color:#e8f8f4}
+.mission-status span {display:block;font-size:14px;line-height:1.45;color:#c2d9e5;margin-top:5px}
+.intro .mission-status {visibility:hidden}
+.combat .mission-status {display:none}
+.mission-story {font-size:16px;line-height:1.45;color:#beeedd}
+.result .row {flex-wrap:wrap}
+.result {max-height:680px;overflow-y:auto}
+.lv-banner {max-height:440px;overflow-y:auto;padding:18px 30px}
+.lv-banner .keys {margin:8px 0;gap:26px}
+.lv-banner .keys .keycap {height:46px;min-width:46px;font-size:26px}
+.lv-banner .go {margin-top:12px}
+.lv-banner h2 {font-size:26px}
+.lv-banner p {font-size:15px;margin-top:6px}
+@media (prefers-reduced-motion:reduce){.mission-choice{transition:none}.mission-choice:hover{transform:none}}

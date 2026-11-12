@@ -74,13 +74,16 @@ App.register('map', {
     const l = LEVELS.find(x => x.id === id), rec = Store.get().levels[id];
     if (!l || !Store.levelOpen(id)) return;
     const n = Store.worldLevels(l.world).indexOf(l) + 1;
-    const start = () => { Sound.click(); App.go('level', { id }); };
+    const checkpoint = Store.getCheckpoint(id);
+    const start = () => { Sound.click(); if(checkpoint) App.go('level', { id, resume:true }); else App.go('briefing', { id }); };
     App.modal(`<div class="modal lv-card"><button class="btn icon x" data-act="close" aria-label="Close">${ic('close')}</button>
       <div class="kicker">World ${l.world} · Level ${n}</div><h2>${esc(l.title)}</h2>
       ${LevelInfo.html(l)}
       ${rec && rec.plays ? `<div class="best">${[0, 1, 2].map(s => ic(s < (rec.stars || 0) ? 'star' : 'starOff')).join('')} best ${rec.bestAcc || 0}% · ${rec.bestWpm || 0} wpm</div>` : ''}
-      <div class="row"><button class="btn primary big" data-act="start">${ic('play')} Start</button></div></div>`,
-    { dismiss: true, act: a => { if (a === 'start') start(); else App.closeModal(); }, key: e => { if (e.key === 'Enter' || e.key === ' ') start(); } });
+      ${Store.getCheckpoint() && !checkpoint ? '<p>Starting this lesson replaces your unfinished mission checkpoint. Completed levels stay saved.</p>' : ''}
+      <div class="row"><button class="btn primary big" data-act="start">${ic('play')} ${checkpoint ? 'Resume mission' : 'Choose mission'}</button>
+      ${rec && rec.stars && !checkpoint && Store.get().settings.difficulty !== 'calm' ? '<button class="btn" data-act="challenge">Optional battle</button>' : ''}</div></div>`,
+    { dismiss: true, act: a => { if (a === 'start') start(); else if(a==='challenge' && rec && rec.stars){Sound.click();App.go('level',{id,challenge:true});} else App.closeModal(); }, key: e => { if (e.key === 'Enter' || e.key === ' ') start(); } });
   },
   key(e) {
     if (e.key === 'ArrowLeft' && this.world > 1) this.act('prev');
@@ -108,3 +111,4 @@ const LevelInfo = {
     return '<p>Real sentences. Eyes on the screen and let your fingers find the keys.</p>';
   },
 };
+

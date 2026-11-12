@@ -168,5 +168,24 @@ const Content = (() => {
     return pool.length >= 12 ? pool : wordPool('asdfghjkl', 2, 6);
   }
 
-  return { build, keysUpTo, lettersUpTo, levelIndex, wordPool, miniWords, wrap, shuffle, pick, rnd };
+  /* A short follow-up uses the exact keys and words from the attempted mission.
+     It never introduces a letter just to make a recovery word sound natural. */
+  function recovery(levelId, missed = {}, segments = [], original = []) {
+    const source = original.length ? original : build(levelId);
+    const allowed = new Set(source.join(''));
+    let focus = Object.keys(missed).filter(c => c.length === 1 && c !== ' ' && allowed.has(c))
+      .sort((a, b) => missed[b] - missed[a]).slice(0, 4);
+    if (!focus.length) focus = [...allowed].filter(c => c !== ' ').slice(0, 2);
+    const warm = Array.from({ length: 6 }, (_, i) => focus[i % focus.length]).join(' ');
+    let words = segments.filter(s => s && s.length <= MAXLINE && [...s].every(c => allowed.has(c))).slice(0, 8);
+    if (!words.length) words = source.join(' ').split(/ +/).filter(Boolean).slice(0, 8);
+    // Repeat a small selection to check the recovery in word context.
+    const practice = [];
+    for (let i = 0; i < 24; i++) practice.push(words[i % words.length]);
+    const lines = wordLines(practice, 2, ' ', MAXLINE);
+    return [warm, ...lines].filter(Boolean);
+  }
+
+  return { build, recovery, keysUpTo, lettersUpTo, levelIndex, wordPool, miniWords, wrap, shuffle, pick, rnd };
 })();
+

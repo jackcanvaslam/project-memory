@@ -9,7 +9,7 @@ App.register('title', {
     Sound.music('home'); Sound.setEnergy(0.3);
     el.innerHTML = `<div class="corner">${App.sysButtons()}</div>
       <div class="logo">Dragon Keys</div>
-      <div class="tagline">Learn to type. Raise a dragon.</div>
+      <div class="tagline">Small adventures. Confident fingers. Your own dragon.</div>
       <div class="title-play">
         <button class="btn primary big pulse" data-act="play">${ic('play')} ${S.hatched ? 'Continue' : 'Start'}</button>
         <div class="title-hint">or press Enter</div>
@@ -66,6 +66,7 @@ App.register('hatch', {
       <div class="hatch-meter">${'<i></i>'.repeat(8)}</div>
       <div class="hatch-egg">${Art.egg(S.pet.color)}</div>
       <div class="kb-dock panel">${Keyboard.markup()}</div>`;
+    if (this.kb) this.kb.destroy();
     this.kb = Keyboard.create(el);
     this.kb.setLearned('fj');
     this.kb.target('f');
@@ -89,7 +90,7 @@ App.register('hatch', {
   },
   hatch() {
     const S = Store.get(), el = this.el;
-    this.step = 'hatching'; this.kb.clear();
+    this.step = 'hatching'; this.kb.destroy(); this.kb = null;
     const box = $('.hatch-egg', el), p = App.pos(box, 0.5, 0.5);
     Sound.hatch(); Sound.setEnergy(0.75);
     FX.shells(p.x, p.y, 22); FX.burst(p.x, p.y, { n: 34, speed: 520, size: 10 }); FX.confetti(110);
@@ -118,6 +119,7 @@ App.register('hatch', {
     this.d.boost = 2;
     this.d.update(dt, this.home.x + Math.cos(this.t * 1.5) * 150, this.home.y + Math.sin(this.t * 1.5) * 70, 0, 26, 7);
   },
+  exit() { if (this.kb) { this.kb.destroy(); this.kb = null; } },
 });
 
 /* ---------------- The lair (home screen) ---------------- */
@@ -125,21 +127,22 @@ App.register('den', {
   TIPS: [
     'Stars come from accuracy. Slow and clean beats fast and messy.',
     'Keep your eyes on the screen. The glowing key shows where to go.',
-    'Long streaks build the music and the glow. A wrong key drops them.',
+    'Each completed phrase helps your mission take shape.',
     'Index fingers rest on F and J. Feel for the small bumps.',
-    'Ten minutes a day is enough to get quick.',
+    'Two missions make a little adventure. You can stop and come back.',
     'Three stars need 98% accuracy. Replay a level to chase them.',
-    'In a fight, one slip is free. Slow down on the next key.',
+    'Battles are optional. Practise a lesson first, then try its challenge.',
     'Mana full? Press Enter and type the power word.',
   ],
   enter(el, params = {}) {
     const next = Store.nextLevel();
     Scene.setTheme(WORLDS[next.world - 1].theme); Scene.setHorizon(0); Scene.setSpeed(22);
     Sound.music('home'); Sound.setEnergy(0.3);
-    this.t = 0; this.tip = params.welcome ? `Welcome, ${Store.get().kid}. Your first flight is waiting.` : Content.pick(this.TIPS);
+    this.t = 0; this.trickTime = 0; this.trick = null;
+    this.tip = params.welcome ? `Welcome, ${Store.get().kid}. Your first adventure is waiting.` : Content.pick(this.TIPS);
     el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) this.act(b.dataset.act, b); });
     this.d = App.myDragon({ size: [1.8, 1.5, 1.3, 1.15][Store.stage()] }); this.d.place(App.W * 0.6, 330);
-    Scene.onDraw = ctx => this.d.draw(ctx);
+    Scene.onDraw = ctx => { Missions.drawLair(ctx, Store.get().adventure.completed, this.t); this.d.draw(ctx); };
     this.render();
     this.checkNews();
   },
@@ -150,6 +153,8 @@ App.register('den', {
     const miniOpen = Store.worldDone(1) || S.settings.unlockAll;
     const allDone = LEVELS.every(l => Store.levelStars(l.id) > 0);
     const n = Store.worldLevels(next.world).indexOf(next) + 1, got = Store.levelStars(next.id);
+    const checkpoint = Store.getCheckpoint(), pending = checkpoint && LEVELS.find(l=>l.id===checkpoint.id);
+    const rewards = Missions.rewards(S.adventure.completed), tricks = rewards.filter(r=>['loop','heart','eight'].includes(r.id));
     el.innerHTML = `${App.hud({ title: 'The Lair', sub: WORLDS[next.world - 1].name })}
       <div class="lair-card panel">
         <div class="kicker">${STAGE_NAMES[st]}</div><h3>${esc(S.pet.name)}</h3>
@@ -163,17 +168,22 @@ App.register('den', {
         <div class="lair-tip">${esc(this.tip)}</div>
       </div>
       <div class="lair-next panel">
-        <div class="kicker">${allDone ? 'All levels cleared' : 'Next flight'}</div>
-        <h4>${esc(next.title)}</h4><p>World ${next.world} · Level ${n} · ${WORLDS[next.world - 1].skill}</p>
-        <div class="stars">${[0, 1, 2].map(i => ic(i < got ? 'star' : 'starOff')).join('')}</div>
-        <div class="kicker" style="margin-top:16px">Difficulty</div>
-        <div class="seg">${Object.keys(DIFFICULTY).map(k => `<button class="${S.settings.difficulty === k ? 'on' : ''}" data-act="diff" data-id="${k}">${DIFFICULTY[k].name}</button>`).join('')}</div>
-        <p class="seg-note">${DIFFICULTY[S.settings.difficulty].text}</p>
+        <div class="kicker">${pending ? 'Ready when you are' : allDone ? 'All levels cleared' : 'Next adventure'}</div>
+        <h4>${esc(pending ? pending.title : next.title)}</h4><p>${pending ? 'Your unfinished mission is waiting.' : `World ${next.world} · Level ${n} · ${WORLDS[next.world - 1].skill}`}</p>
+        <div class="stars">${[0, 1, 2].map(i => ic(i < (pending ? Store.levelStars(pending.id) : got) ? 'star' : 'starOff')).join('')}</div>
+        <span class="adventure-count">${S.adventure.sessionCount} of 2 missions this adventure</span>
+        <p class="checkpoint-note">${pending ? 'Continue from the key you reached. Your dragon remembers the way.' : 'Start with F + J. Choose a mission. Learn at your own pace.'}</p>
+        <button class="btn" data-act="map">${ic('map')} Choose a lesson</button>
+        <p class="checkpoint-note">${Store.isMemoryOnly() ? 'Saving is unavailable in this browser. Use Stats → Export backup before closing.' : 'Saved in this browser. Stats has backup and restore.'}</p>
+      </div>
+      <div class="companion-panel panel"><p>${S.adventure.completed ? `“Hello, ${esc(S.kid||'Rider')}. Ready for our next little adventure?”` : `“I’m ${esc(S.pet.name||'Ember')}. Let’s discover this world together.”`}</p>
+        ${tricks.length ? `<div class="trick-buttons">${tricks.map(r=>`<button class="btn" data-act="trick" data-trick="${r.id}">${esc(r.name)}</button>`).join('')}</div>` : ''}
+        <small>${esc(Missions.rewardText(S.adventure.completed))}</small>
       </div>
       <div class="lair-actions">
         <button class="btn" data-act="map">${ic('map')} Map</button>
         <button class="btn" data-act="forge">${ic('forge')} Forge</button>
-        <button class="btn primary big pulse" data-act="play">${ic('play')} ${S.history.length ? 'Fly' : 'First flight'}</button>
+        <button class="btn primary big pulse" data-act="play">${ic('play')} ${pending ? 'Resume mission' : 'Start adventure'}</button>
         <button class="btn" data-act="mini" ${miniOpen ? '' : 'style="opacity:.55"'}>${ic(miniOpen ? 'storm' : 'lock')} Gem Storm</button>
         <button class="btn" data-act="parent">${ic('chart')} Stats</button>
       </div>`;
@@ -181,7 +191,16 @@ App.register('den', {
   act(a, b) {
     const S = Store.get();
     if (a === 'diff') { S.settings.difficulty = b.dataset.id; Store.save(); Sound.pop(); this.render(); }
-    else if (a === 'play') { Sound.click(); App.go('level', { id: Store.nextLevel().id }); }
+    else if (a === 'play') {
+      Sound.click();
+      const cp = Store.getCheckpoint();
+      if (cp) App.go('level', { id: cp.id, resume: true });
+      else { if (S.adventure.sessionCount >= 2) { S.adventure.sessionCount = 0; Store.save(); } App.go('briefing', { id: Store.nextLevel().id }); }
+    }
+    else if (a === 'trick') {
+      if (!Missions.rewards(S.adventure.completed).some(r=>r.id===b.dataset.trick)) return;
+      this.trick=b.dataset.trick; this.trickTime=0; Sound.whoosh();
+    }
     else if (a === 'map') { Sound.click(); App.go('map'); }
     else if (a === 'forge') { Sound.click(); Forge.open(() => { this.d.setLook(Object.assign(DragonViews.look({ dataset: {} }), { size: [1.8, 1.5, 1.3, 1.15][Store.stage()] })); this.render(); }); }
     else if (a === 'parent') { Sound.click(); App.go('parent'); }
@@ -193,6 +212,17 @@ App.register('den', {
   tick(dt) {
     this.t += dt;
     const t = this.t, W = App.W;
+    if (this.trick) {
+      this.trickTime += dt;
+      const u=Math.min(1,this.trickTime/5), a=u*Math.PI*2;
+      let x,y;
+      if (this.trick==='heart') { x=W*.53+Math.pow(Math.sin(a),3)*125; y=325-(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a))*8; }
+      else if (this.trick==='eight') { x=W*.53+Math.sin(a)*160;y=330+Math.sin(a*2)*67; }
+      else { x=W*.53+Math.cos(a)*145;y=325+Math.sin(a)*100; }
+      this.d.boost=2;this.d.update(dt,x,y,20,28,8);
+      if(u===1)this.trick=null;
+      return;
+    }
     this.d.boost = 0.8;
     this.d.update(dt, W * 0.56 + Math.sin(t * 0.55) * 80, 350 + Math.sin(t * 0.9) * 60 + Math.sin(t * 2.1) * 10, 120, 20, 7);
   },
@@ -263,3 +293,4 @@ const Forge = (() => {
   }
   return { open };
 })();
+

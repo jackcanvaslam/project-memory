@@ -541,3 +541,4 @@ const FX = (() => {
 
   return { init, resize, burst, confetti, cannon, fire, shells, text, shoot, beam, update, draw, clear, get count() { return parts.length; } };
 })();
+

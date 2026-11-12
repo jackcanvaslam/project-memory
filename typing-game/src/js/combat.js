@@ -19,8 +19,8 @@ const EMBER_SKIN = { a: '#ff7a3d', b: '#7a1030', fin: '#ffd23f', belly: '#ffd9b0
 const ASHEN_SKIN = { a: '#ff3d5a', b: '#1a0612', fin: '#ff9a3d', belly: '#ffb0a0', glow: '255,60,80' };
 const DIFFICULTY = {
   calm:   { name: 'Calm',   text: 'No enemies. Just you, the keys and the music.' },
-  normal: { name: 'Normal', text: 'Enemies strike when you slip twice on a word. They wait while you learn the first three levels.' },
-  fierce: { name: 'Fierce', text: 'Enemies from the very first level. They also strike if you take too long. Pays 25% more shards.' },
+  normal: { name: 'Normal', text: 'Optional battles on completed lessons. Two different slips in one word let an enemy strike. No timer.' },
+  fierce: { name: 'Fierce', text: 'Optional battles on completed lessons, with a word timer. Pays 25% more shards. Learning flights stay gentle.' },
 };
 
 /* ---------------- how each enemy is drawn (all face left, toward the dragon) ---------------- */
@@ -95,9 +95,9 @@ const FoeArt = {
 
 class Combat {
   /* is there fighting on this level, given the difficulty she chose? */
-  static on(idx) {
+  static on(idx, challenge = false) {
     const d = Store.get().settings.difficulty;
-    return d !== 'calm' && (d === 'fierce' || idx >= 3);
+    return !!challenge && !!LEVELS[idx] && Store.levelStars(LEVELS[idx].id) > 0 && d !== 'calm';
   }
   static moves() {
     const S = Store.get();
@@ -109,7 +109,7 @@ class Combat {
     this.lv = lv; this.info = FOE_INFO[world.theme]; this.theme = world.theme;
     this.fierce = S.settings.difficulty === 'fierce';
     this.maxHp = 5; this.hp = 5; this.mana = 0; this.shield = 0; this.frozen = 0; this.downed = false;
-    this.wordSlips = 0; this.recent = []; this.clock = 0; this.clockFrac = 0; this.warned = false;
+    this.wordSlips = 0; this.slipPositions = new Set(); this.clock = 0; this.clockFrac = 0; this.warned = false;
     this.kills = 0; this.hits = 0; this.cast = null; this.t = 0; this.queue = []; this.bossBeaten = false;
     this.moves = Combat.moves();
     this.perChar = [1.5, 1.3, 1.2, 1.1, 1.0][level.world - 1];
@@ -186,7 +186,7 @@ class Combat {
   }
   /* word i has just been finished. Returns true if combat showed it, so the level skips its own effect. */
   wordDone(i) {
-    this.wordSlips = 0; this.clock = 0; this.warned = false;
+    this.wordSlips = 0; this.slipPositions.clear(); this.clock = 0; this.warned = false;
     if (this.downed) return false;
     const f = this.byWord[i];
     if (f) {
@@ -226,14 +226,15 @@ class Combat {
     if (this.downed || this.frozen > 0) return;
     const f = this.cur(), L = this.lv.L;
     if (!f && !this.bossOn()) return;
-    this.wordSlips++; this.recent.push(L.done); this.recent = this.recent.filter(c => L.done - c <= 10);
-    if (this.wordSlips >= 2 || this.recent.length >= 3) { this.wordSlips = 0; this.recent = []; this.strike(); }
+    if (this.slipPositions.has(L.done)) return;
+    this.slipPositions.add(L.done); this.wordSlips++;
+    if (this.wordSlips >= 2) { this.wordSlips = 0; this.strike(); }
     else { (f || this.boss).charge = 1; Sound.warn(); }
   }
   strike() {
     const f = this.cur(), h = this.lv.d.head();
     if (f) { f.lunge = 1; f.charge = 0; this.land(); }
-    else if (this.bossOn()) { this.boss.charge = 0; this.boss.lunge = 1; FX.shoot({ x: this.boss.x - 90, y: this.boss.y }, { x: h.x + 20, y: h.y }, () => this.land(), true, 0.22); }
+    else if (this.bossOn()) { this.boss.charge = 0; this.boss.lunge = 1; FX.shoot({ x: this.boss.x - 90, y: this.boss.y }, { x: h.x + 20, y: h.y }, () => {}, true, 0.22); this.land(); }
   }
   land() {
     if (this.downed) return;
@@ -250,7 +251,7 @@ class Combat {
     }
     this.hud();
   }
-  /* out of life: the enemies win this round. She still finishes the text, for one star at most. */
+  /* The optional battle never takes away typing mastery. */
   down() {
     this.downed = true; this.closeCast(); this.mana = 0; this.shield = 0; this.frozen = 0;
     for (const f of this.foes) if (f.state === 'alive') f.state = 'flee';
@@ -258,7 +259,7 @@ class Combat {
     if (this.boss && this.boss.state === 'fight') { this.boss.state = 'leave'; Sound.music(this.theme); }
     Sound.down(); this.lv.L.heat = 0;
     FX.text(App.W / 2, 236, 'Knocked back', '#ff4d6d', 46);
-    App.toast('Finish the run to earn one star. Replay it to win all three.', 4200);
+    App.toast('Your dragon is safe. Finish the typing: your accuracy stars still count.', 4200);
     this.hud();
   }
 
@@ -334,8 +335,9 @@ class Combat {
       d.jawTarget = 1;
       let k = 0;
       const iv = setInterval(() => { const q = d.mouth(); FX.fire(q.x, q.y, q.dx, q.dy, 1.5); if (++k > 14 || App.screen !== 'level') { clearInterval(iv); d.jawTarget = 0; } }, 45);
-      if (this.bossOn()) App.later(() => { if (this.bossOn()) this.hitBoss(4); }, 320);
-      else this.queue.slice(0, 3).forEach((f, j) => App.later(() => { if (f.state === 'alive') this.kill(f); }, 200 + j * 150));
+      // Resolve the result now so pausing/saving never drops a paid-for power.
+      if (this.bossOn()) this.hitBoss(4);
+      else this.queue.slice(0, 3).forEach(f => { if (f.state === 'alive') this.kill(f); });
     } else if (move.id === 'shield') {
       this.shield = 2;
       FX.burst(h.x + 10, h.y, { n: 20, speed: 280, g: 0, colors: ['#22e1ff', '#ffffff'], ringGrow: 340 });
@@ -351,8 +353,9 @@ class Combat {
   tick(dt) {
     const lv = this.lv, L = lv.L, W = App.W, hx = lv.hx();
     this.t += dt;
-    if (this.frozen > 0) this.frozen = Math.max(0, this.frozen - dt);
-    const still = this.frozen > 0, playing = L.phase === 'play' && !this.downed;
+    const playing = L.phase === 'play' && !this.downed;
+    if (playing && this.frozen > 0) this.frozen = Math.max(0, this.frozen - dt);
+    const still = this.frozen > 0;
 
     // on Fierce, taking too long on a word also lets the enemy strike
     const f0 = this.cur();
@@ -502,6 +505,29 @@ class Combat {
     ctx.restore();
   }
 
+  snapshot() {
+    return { hp: this.hp, mana: this.mana, shield: this.shield, frozen: this.frozen, downed: this.downed,
+      kills: this.kills, hits: this.hits, wordSlips: this.wordSlips, slipPositions: [...this.slipPositions],
+      clock: this.clock, fierce: this.fierce, bossHp: this.boss ? this.boss.hp : null, bossBeaten: this.bossBeaten,
+      foes: this.foes.map(f => ({ state: f.state, armor: f.armor })) };
+  }
+  restore(saved) {
+    if (!saved) return;
+    for (const key of ['hp', 'mana', 'shield', 'frozen', 'downed', 'kills', 'hits', 'wordSlips', 'clock', 'fierce', 'bossBeaten']) this[key] = saved[key];
+    this.slipPositions = new Set(saved.slipPositions || []);
+    this.foes.forEach((f, i) => {
+      const s = saved.foes[i];
+      if (s) { f.state = s.state; f.armor = s.armor; }
+      if (f.state !== 'alive') for (let k = f.w0; k <= f.w1; k++) this.byWord[k] = null;
+    });
+    if (this.boss) {
+      this.boss.hp = saved.bossHp == null ? this.boss.max : Math.min(this.boss.max, saved.bossHp);
+      this.boss.state = this.bossBeaten ? 'dead' : this.downed ? 'leave' : 'fight';
+    }
+    if (this.downed) this.byWord.fill(null);
+    this.hud();
+  }
+
   /* what the fight adds to the result screen */
   summary() {
     const el = this.lv.kb.keyEls.Enter; if (el) el.classList.remove('charged');
@@ -509,3 +535,4 @@ class Combat {
     return { downed: this.downed, kills: this.kills, hits: this.hits, boss: this.boss ? this.boss.name : null, bossBeaten: this.bossBeaten, fierce: this.fierce };
   }
 }
+

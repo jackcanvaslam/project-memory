@@ -121,3 +121,4 @@ const Art = (() => {
 
   return { shade, ic, egg, hand, swatch, starPoints, FINGER_COLORS };
 })();
+
