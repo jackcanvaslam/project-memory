@@ -77,8 +77,8 @@ App.register('parent', {
           <label><input type="checkbox" data-set="music" ${S.settings.music ? 'checked' : ''}> Music</label>
           <label><input type="checkbox" data-set="sound" ${S.settings.sound ? 'checked' : ''}> Sound effects</label>
           <label><input type="checkbox" data-set="unlockAll" ${S.settings.unlockAll ? 'checked' : ''}> Unlock every level</label>
-          <label><input type="checkbox" data-set="memoryHints" ${S.settings.memoryHints ? 'checked' : ''}> Try remembered keys first</label>
-          <p style="margin:0;font-size:13px">On passed lessons only, finger hints appear after a pause. F and J stay visible, and help is always available.</p>
+          <label><input type="checkbox" data-set="alwaysHints" ${S.settings.alwaysHints ? 'checked' : ''}> Always show finger hints</label>
+          <p style="margin:0;font-size:13px">Hints fade on their own for each key she hits reliably, and return if she pauses or slips. Tick this to keep them on.</p>
           <label>Challenge difficulty <select data-set="difficulty">${Object.keys(DIFFICULTY).map(k => `<option value="${k}" ${S.settings.difficulty === k ? 'selected' : ''}>${DIFFICULTY[k].name}</option>`).join('')}</select></label>
           <label>Child <input class="text" data-set="kid" maxlength="10" value="${esc(S.kid)}"></label>
           <label>Dragon <input class="text" data-set="pet" maxlength="10" value="${esc(S.pet.name)}"></label>
@@ -109,7 +109,7 @@ App.register('parent', {
     if (k === 'sound') { S.settings.sound = t.checked; Sound.setOn(t.checked); }
     else if (k === 'music') { S.settings.music = t.checked; Sound.setMusic(t.checked); }
     else if (k === 'unlockAll') S.settings.unlockAll = t.checked;
-    else if (k === 'memoryHints') S.settings.memoryHints = t.checked;
+    else if (k === 'alwaysHints') S.settings.alwaysHints = t.checked;
     else if (k === 'difficulty') S.settings.difficulty = t.value;
     else if (k === 'kid') { S.kid = cleanName(t.value, S.kid); t.value = S.kid; }
     else if (k === 'pet') { S.pet.name = cleanName(t.value, S.pet.name); t.value = S.pet.name; }

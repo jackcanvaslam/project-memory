@@ -127,18 +127,19 @@ App.register('den', {
   TIPS: [
     'Stars come from accuracy. Slow and clean beats fast and messy.',
     'Keep your eyes on the screen. The glowing key shows where to go.',
-    'Each completed phrase helps your mission take shape.',
+    'Every word you finish builds a little more of the mission.',
     'Index fingers rest on F and J. Feel for the small bumps.',
     'Two missions make a little adventure. You can stop and come back.',
     'Three stars need 98% accuracy. Replay a level to chase them.',
-    'Battles are optional. Practise a lesson first, then try its challenge.',
+    'Every world ends with a boss. Other battles are an optional replay.',
+    'Type a word in the lair to make your dragon play. Try its name too.',
     'Mana full? Press Enter and type the power word.',
   ],
   enter(el, params = {}) {
     const next = Store.nextLevel();
     Scene.setTheme(WORLDS[next.world - 1].theme); Scene.setHorizon(0); Scene.setSpeed(22);
     Sound.music('home'); Sound.setEnergy(0.3);
-    this.t = 0; this.trickTime = 0; this.trick = null;
+    this.t = 0; this.trickTime = 0; this.trick = null; this.buf = '';
     this.tip = params.welcome ? `Welcome, ${Store.get().kid}. Your first adventure is waiting.` : Content.pick(this.TIPS);
     el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) this.act(b.dataset.act, b); });
     this.d = App.myDragon({ size: [1.8, 1.5, 1.3, 1.15][Store.stage()] }); this.d.place(App.W * 0.6, 330);
@@ -154,7 +155,7 @@ App.register('den', {
     const allDone = LEVELS.every(l => Store.levelStars(l.id) > 0);
     const n = Store.worldLevels(next.world).indexOf(next) + 1, got = Store.levelStars(next.id);
     const checkpoint = Store.getCheckpoint(), pending = checkpoint && LEVELS.find(l=>l.id===checkpoint.id);
-    const rewards = Missions.rewards(S.adventure.completed), tricks = rewards.filter(r=>['loop','heart','eight'].includes(r.id));
+    const cmds = this.commands().filter(c => !c.secret);
     el.innerHTML = `${App.hud({ title: 'The Lair', sub: WORLDS[next.world - 1].name })}
       <div class="lair-card panel">
         <div class="kicker">${STAGE_NAMES[st]}</div><h3>${esc(S.pet.name)}</h3>
@@ -172,12 +173,13 @@ App.register('den', {
         <h4>${esc(pending ? pending.title : next.title)}</h4><p>${pending ? 'Your unfinished mission is waiting.' : `World ${next.world} · Level ${n} · ${WORLDS[next.world - 1].skill}`}</p>
         <div class="stars">${[0, 1, 2].map(i => ic(i < (pending ? Store.levelStars(pending.id) : got) ? 'star' : 'starOff')).join('')}</div>
         <span class="adventure-count">${S.adventure.sessionCount} of 2 missions this adventure</span>
-        <p class="checkpoint-note">${pending ? 'Continue from the key you reached. Your dragon remembers the way.' : 'Start with F + J. Choose a mission. Learn at your own pace.'}</p>
+        <p class="checkpoint-note">${pending ? 'Continue from the key you reached. Your dragon remembers the way.' : 'Press Enter to fly. Two missions make an adventure.'}</p>
         <button class="btn" data-act="map">${ic('map')} Choose a lesson</button>
         <p class="checkpoint-note">${Store.isMemoryOnly() ? 'Saving is unavailable in this browser. Use Stats → Export backup before closing.' : 'Saved in this browser. Stats has backup and restore.'}</p>
       </div>
-      <div class="companion-panel panel"><p>${S.adventure.completed ? `“Hello, ${esc(S.kid||'Rider')}. Ready for our next little adventure?”` : `“I’m ${esc(S.pet.name||'Ember')}. Let’s discover this world together.”`}</p>
-        ${tricks.length ? `<div class="trick-buttons">${tricks.map(r=>`<button class="btn" data-act="trick" data-trick="${r.id}">${esc(r.name)}</button>`).join('')}</div>` : ''}
+      <div class="companion-panel panel"><p>${S.adventure.completed ? `“Hello, ${esc(S.kid||'Rider')}. Ready for our next adventure?”` : `“I’m ${esc(S.pet.name||'Ember')}. Let’s fly.”`}</p>
+        <div class="lair-say"><span>Type a word to play</span><b class="lair-typed"></b></div>
+        <div class="trick-buttons">${cmds.map(c => c.open ? `<button class="btn" data-act="trick" data-trick="${c.id}">${c.word}</button>` : `<button class="btn" disabled title="Finish more missions to learn this trick">? ? ?</button>`).join('')}</div>
         <small>${esc(Missions.rewardText(S.adventure.completed))}</small>
       </div>
       <div class="lair-actions">
@@ -195,12 +197,14 @@ App.register('den', {
       Sound.click();
       const cp = Store.getCheckpoint();
       if (cp) App.go('level', { id: cp.id, resume: true });
-      else { if (S.adventure.sessionCount >= 2) { S.adventure.sessionCount = 0; Store.save(); } App.go('briefing', { id: Store.nextLevel().id }); }
+      else {
+        if (S.adventure.sessionCount >= 2) { S.adventure.sessionCount = 0; Store.save(); }
+        const id = Store.nextLevel().id;
+        // the warm-up comes before the first flight of the day only
+        if (S.adventure.warmDay !== Store.today()) App.go('briefing', { id }); else App.go('level', { id, route: Missions.autoRoute(id) });
+      }
     }
-    else if (a === 'trick') {
-      if (!Missions.rewards(S.adventure.completed).some(r=>r.id===b.dataset.trick)) return;
-      this.trick=b.dataset.trick; this.trickTime=0; Sound.whoosh();
-    }
+    else if (a === 'trick') this.perform(b.dataset.trick);
     else if (a === 'map') { Sound.click(); App.go('map'); }
     else if (a === 'forge') { Sound.click(); Forge.open(() => { this.d.setLook(Object.assign(DragonViews.look({ dataset: {} }), { size: [1.8, 1.5, 1.3, 1.15][Store.stage()] })); this.render(); }); }
     else if (a === 'parent') { Sound.click(); App.go('parent'); }
@@ -209,24 +213,62 @@ App.register('den', {
       else { Sound.nope(); App.toast('Finish Moonlit Meadow to unlock Gem Storm'); }
     }
   },
+  /* words she can type in the lair, and what each makes the dragon do */
+  commands() {
+    const S = Store.get(), got = id => Missions.rewards(S.adventure.completed).some(r => r.id === id);
+    return [{ word: 'dash', id: 'dash', open: true }, { word: 'flash', id: 'flash', open: true }, { word: 'fire', id: 'fire', open: true },
+      { word: 'loop', id: 'loop', open: got('loop') }, { word: 'heart', id: 'heart', open: got('heart') }, { word: 'ribbon', id: 'eight', open: got('eight') },
+      { word: (S.pet.name || 'ember').toLowerCase(), id: 'name', open: true, secret: true }];
+  },
+  perform(id) {
+    const c = this.commands().find(x => x.id === id), d = this.d, h = d.head(), S = Store.get();
+    if (!c || !c.open) return;
+    if (id === 'fire') {
+      d.jawTarget = 1; Sound.fire();
+      let k = 0;
+      const iv = setInterval(() => { const q = d.mouth(); FX.fire(q.x, q.y, q.dx, q.dy, 1.3); if (++k > 16 || App.screen !== 'den') { clearInterval(iv); d.jawTarget = 0; } }, 45);
+    } else if (id === 'flash') {
+      Sound.levelUp(); FX.burst(h.x, h.y, { n: 40, speed: 520, size: 11, g: 0, colors: ['#ffffff', '#22e1ff', '#ff3df0', '#ffd98a'], ringGrow: 420 }); FX.confetti(50);
+    } else if (id === 'name') {
+      Sound.heal(); FX.text(h.x, h.y - 90, `Hi, ${S.kid || 'Rider'}!`, '#ffd98a', 32); FX.burst(h.x, h.y, { n: 16, speed: 240, g: -200, colors: ['#ff8fc1', '#ffffff'] });
+    } else { this.trick = id; this.trickTime = 0; Sound.whoosh(); }
+  },
+  key(e) {
+    if (e.key === 'Enter') { this.act('play'); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey || !/^[a-zA-Z]$/.test(e.key)) return;
+    this.buf = (this.buf + e.key.toLowerCase()).slice(-12);
+    Sound.key(this.buf.length, 0);
+    const hit = this.commands().find(c => c.open && this.buf.endsWith(c.word));
+    const out = $('.lair-typed', this.el);
+    if (out) { out.textContent = hit ? hit.word : this.buf; out.classList.toggle('hit', !!hit); }
+    clearTimeout(this.bufT); this.bufT = setTimeout(() => { this.buf = ''; const o = $('.lair-typed', this.el); if (o) { o.textContent = ''; o.classList.remove('hit'); } }, hit ? 1200 : 2600);
+    if (hit) { this.buf = ''; this.perform(hit.id); }
+  },
   tick(dt) {
     this.t += dt;
     const t = this.t, W = App.W;
+    if (this.trick === 'dash') {
+      this.trickTime += dt;
+      const u = Math.min(1, this.trickTime / 1.8);
+      this.d.boost = 5; this.d.update(dt, W * .53 + Math.sin(u * TAU) * W * .3, 290 + Math.sin(u * TAU * 2) * 26, 20, 70, 11);
+      if (u === 1) this.trick = null;
+      return;
+    }
     if (this.trick) {
       this.trickTime += dt;
       const u=Math.min(1,this.trickTime/5), a=u*Math.PI*2;
       let x,y;
-      if (this.trick==='heart') { x=W*.53+Math.pow(Math.sin(a),3)*125; y=325-(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a))*8; }
-      else if (this.trick==='eight') { x=W*.53+Math.sin(a)*160;y=330+Math.sin(a*2)*67; }
-      else { x=W*.53+Math.cos(a)*145;y=325+Math.sin(a)*100; }
+      if (this.trick==='heart') { x=W*.53+Math.pow(Math.sin(a),3)*125; y=285-(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a))*8; }
+      else if (this.trick==='eight') { x=W*.53+Math.sin(a)*160;y=290+Math.sin(a*2)*67; }
+      else { x=W*.53+Math.cos(a)*145;y=285+Math.sin(a)*100; }
       this.d.boost=2;this.d.update(dt,x,y,20,28,8);
       if(u===1)this.trick=null;
       return;
     }
     this.d.boost = 0.8;
-    this.d.update(dt, W * 0.56 + Math.sin(t * 0.55) * 80, 350 + Math.sin(t * 0.9) * 60 + Math.sin(t * 2.1) * 10, 120, 20, 7);
+    this.d.update(dt, W * 0.56 + Math.sin(t * 0.55) * 80, 300 + Math.sin(t * 0.9) * 50 + Math.sin(t * 2.1) * 10, 120, 20, 7);
   },
-  key(e) { if (e.key === 'Enter') this.act('play'); },
+  exit() { clearTimeout(this.bufT); },
   /* things she has not been told about yet: growth, and rewards from worlds finished in an older version */
   checkNews() {
     const S = Store.get(), st = Store.stage();

@@ -11,8 +11,8 @@ const Store = (() => {
     pet: { name: '', color: 'emerald', trail: 'spark', crest: 'horns' },
     coins: 0, levels: {}, owned: {}, seenStage: 0,
     keys: {}, history: [], streak: { count: 0, last: '' }, totalSecs: 0,
-    settings: { sound: true, music: true, unlockAll: false, difficulty: 'normal', memoryHints: false }, mini: { best: 0, plays: 0 },
-    adventure: { completed: 0, sessionCount: 0, lastReward: 0 }, checkpoint: null,
+    settings: { sound: true, music: true, unlockAll: false, difficulty: 'normal', memoryHints: false, alwaysHints: false }, mini: { best: 0, plays: 0 },
+    adventure: { completed: 0, sessionCount: 0, lastReward: 0, warmDay: '' }, checkpoint: null,
   });
 
   let S = fresh();
@@ -116,6 +116,9 @@ const Store = (() => {
       out.levels[id] = {stars:number(r.stars, 0, 3, strict), bestAcc:number(r.bestAcc, 0, 100, strict),
         bestWpm:number(r.bestWpm, 0, 1000, strict), plays:number(r.plays, 0, 1e6, strict)};
       if (r.recoveryAcc !== undefined) out.levels[id].recoveryAcc = number(r.recoveryAcc, 0, 100, strict);
+      // the pace of her best run, as seconds at each twentieth of the level, for the ghost to replay
+      if (Array.isArray(r.ghost) && r.ghost.length === 20) out.levels[id].ghost = r.ghost.map(n => number(n, 0, 7200, strict, false));
+      else if (strict && r.ghost !== undefined) fail('A saved best run is invalid.');
     }
     const owned = record(raw.owned, strict, 'Unlocked looks');
     for (const [prefix, options] of [['c-',DRAGON_COLORS],['t-',TRAILS],['h-',CRESTS]]) for (const id of Object.keys(options)) {
@@ -139,7 +142,7 @@ const Store = (() => {
     }
     const streak = record(raw.streak, strict, 'Daily practice');
     out.streak = {count:number(streak.count, 0, 100000, strict),last:typeof streak.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(streak.last) && Number.isFinite(Date.parse(streak.last + 'T12:00')) ? streak.last : ''};
-    for (const k of ['sound','music','unlockAll','memoryHints']) out.settings[k] = bool(settings[k], out.settings[k], strict);
+    for (const k of ['sound','music','unlockAll','memoryHints','alwaysHints']) out.settings[k] = bool(settings[k], out.settings[k], strict);
     if (['calm','normal','fierce'].includes(settings.difficulty)) out.settings.difficulty = settings.difficulty;
     else if (strict && settings.difficulty !== undefined) fail('The saved challenge difficulty is invalid.');
     const mini = record(raw.mini, strict, 'Gem Storm');
@@ -147,7 +150,8 @@ const Store = (() => {
     const adventure = record(raw.adventure, strict, 'Adventures');
     const passed = Object.values(out.levels).filter(l => l.stars > 0).length;
     out.adventure = {completed:number(adventure.completed, passed, 1e6, strict),sessionCount:number(adventure.sessionCount, 0, 1000, strict),
-      lastReward:number(adventure.lastReward, 0, 1e6, strict)};
+      lastReward:number(adventure.lastReward, 0, 1e6, strict),
+      warmDay:typeof adventure.warmDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(adventure.warmDay) ? adventure.warmDay : ''};
     try { out.checkpoint = checkpoint(raw.checkpoint); } catch (e) { if (strict) throw e; }
     return out;
   }
@@ -251,6 +255,13 @@ const Store = (() => {
     if (ok) rec.hit++; else rec.miss++;
     // Let old mistakes fade so the chart shows how she types now
     if (rec.hit + rec.miss > 200) { rec.hit = Math.round(rec.hit * 0.7); rec.miss = Math.round(rec.miss * 0.7); }
+    if (k !== '^' && (ch !== k || SHIFTED[ch])) noteKey('^', ok);   // '^' stands for using Shift
+  }
+  /* Does she hit this key reliably enough that the finger hints can stay quiet? */
+  function mastered(ch) {
+    const one = k => { const r = S.keys[k]; return !!r && r.hit + r.miss >= 20 && r.miss / (r.hit + r.miss) <= 0.06; };
+    const k = ch.toLowerCase();
+    return one(k) && (ch === k && !SHIFTED[ch] || one('^'));
   }
 
   /* Returns the daily streak bonus if this is the first finished level today, else 0 */
@@ -265,7 +276,7 @@ const Store = (() => {
   function addCoins(n) { S.coins = Math.max(0, S.coins + n); }
 
   return { load, save, reset, get, totalStars, stage, levelStars, worldLevels, worldDone, worldOpen, levelOpen,
-    nextLevel, highestIndex, weakKeys, noteKey, touchStreak, addCoins, today, owns, give, ownKey, priceOf, grantRewards,
+    nextLevel, highestIndex, weakKeys, noteKey, mastered, touchStreak, addCoins, today, owns, give, ownKey, priceOf, grantRewards,
     getCheckpoint, setCheckpoint, clearCheckpoint, exportSave, inspectBackup, restoreBackup,
     isMemoryOnly: () => memoryOnly, getLoadWarning: () => loadWarning };
 })();

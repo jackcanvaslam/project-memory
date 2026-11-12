@@ -428,6 +428,19 @@ input.text:focus { border-color: var(--cyan); outline: none; box-shadow: 0 0 22p
 .lv-banner p {font-size:15px;margin-top:6px}
 @media (prefers-reduced-motion:reduce){.mission-choice{transition:none}.mission-choice:hover{transform:none}}
 
+/* ---------- typing words in the lair, and the story swap ---------- */
+.lair-say { display: flex; align-items: center; justify-content: center; gap: 12px; height: 34px; margin: -2px 0 10px; }
+.lair-say span { font-size: 10px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); }
+.lair-typed { min-width: 150px; height: 32px; padding: 0 12px; border-radius: 8px; background: rgba(255, 255, 255, .06); border: 1px solid var(--line); font: 700 20px/30px var(--mono); letter-spacing: 3px; color: #fff; text-align: left; }
+.lair-typed.hit { color: #050818; background: #9dffe0; border-color: #fff; box-shadow: 0 0 20px #9dffe0; }
+.companion-panel .trick-buttons .btn { text-transform: none; letter-spacing: 2px; font: 700 14px var(--mono); }
+.lv-banner .swap { margin-top: 12px; }
+.result-notes { margin: 2px 0 10px !important; font-size: 15px !important; line-height: 1.55 !important; color: #cfe6f0 !important; }
+.result-notes b { color: #9dffe0; }
+.modal.result { width: 760px; }
+.modal.result .row { flex-wrap: nowrap; gap: 10px; }
+.modal.result .row .btn { flex: none; }
+
 </style>
 </head>
 <body>
@@ -906,8 +919,8 @@ const Store = (() => {
     pet: { name: '', color: 'emerald', trail: 'spark', crest: 'horns' },
     coins: 0, levels: {}, owned: {}, seenStage: 0,
     keys: {}, history: [], streak: { count: 0, last: '' }, totalSecs: 0,
-    settings: { sound: true, music: true, unlockAll: false, difficulty: 'normal', memoryHints: false }, mini: { best: 0, plays: 0 },
-    adventure: { completed: 0, sessionCount: 0, lastReward: 0 }, checkpoint: null,
+    settings: { sound: true, music: true, unlockAll: false, difficulty: 'normal', memoryHints: false, alwaysHints: false }, mini: { best: 0, plays: 0 },
+    adventure: { completed: 0, sessionCount: 0, lastReward: 0, warmDay: '' }, checkpoint: null,
   });
 
   let S = fresh();
@@ -1011,6 +1024,9 @@ const Store = (() => {
       out.levels[id] = {stars:number(r.stars, 0, 3, strict), bestAcc:number(r.bestAcc, 0, 100, strict),
         bestWpm:number(r.bestWpm, 0, 1000, strict), plays:number(r.plays, 0, 1e6, strict)};
       if (r.recoveryAcc !== undefined) out.levels[id].recoveryAcc = number(r.recoveryAcc, 0, 100, strict);
+      // the pace of her best run, as seconds at each twentieth of the level, for the ghost to replay
+      if (Array.isArray(r.ghost) && r.ghost.length === 20) out.levels[id].ghost = r.ghost.map(n => number(n, 0, 7200, strict, false));
+      else if (strict && r.ghost !== undefined) fail('A saved best run is invalid.');
     }
     const owned = record(raw.owned, strict, 'Unlocked looks');
     for (const [prefix, options] of [['c-',DRAGON_COLORS],['t-',TRAILS],['h-',CRESTS]]) for (const id of Object.keys(options)) {
@@ -1034,7 +1050,7 @@ const Store = (() => {
     }
     const streak = record(raw.streak, strict, 'Daily practice');
     out.streak = {count:number(streak.count, 0, 100000, strict),last:typeof streak.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(streak.last) && Number.isFinite(Date.parse(streak.last + 'T12:00')) ? streak.last : ''};
-    for (const k of ['sound','music','unlockAll','memoryHints']) out.settings[k] = bool(settings[k], out.settings[k], strict);
+    for (const k of ['sound','music','unlockAll','memoryHints','alwaysHints']) out.settings[k] = bool(settings[k], out.settings[k], strict);
     if (['calm','normal','fierce'].includes(settings.difficulty)) out.settings.difficulty = settings.difficulty;
     else if (strict && settings.difficulty !== undefined) fail('The saved challenge difficulty is invalid.');
     const mini = record(raw.mini, strict, 'Gem Storm');
@@ -1042,7 +1058,8 @@ const Store = (() => {
     const adventure = record(raw.adventure, strict, 'Adventures');
     const passed = Object.values(out.levels).filter(l => l.stars > 0).length;
     out.adventure = {completed:number(adventure.completed, passed, 1e6, strict),sessionCount:number(adventure.sessionCount, 0, 1000, strict),
-      lastReward:number(adventure.lastReward, 0, 1e6, strict)};
+      lastReward:number(adventure.lastReward, 0, 1e6, strict),
+      warmDay:typeof adventure.warmDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(adventure.warmDay) ? adventure.warmDay : ''};
     try { out.checkpoint = checkpoint(raw.checkpoint); } catch (e) { if (strict) throw e; }
     return out;
   }
@@ -1146,6 +1163,13 @@ const Store = (() => {
     if (ok) rec.hit++; else rec.miss++;
     // Let old mistakes fade so the chart shows how she types now
     if (rec.hit + rec.miss > 200) { rec.hit = Math.round(rec.hit * 0.7); rec.miss = Math.round(rec.miss * 0.7); }
+    if (k !== '^' && (ch !== k || SHIFTED[ch])) noteKey('^', ok);   // '^' stands for using Shift
+  }
+  /* Does she hit this key reliably enough that the finger hints can stay quiet? */
+  function mastered(ch) {
+    const one = k => { const r = S.keys[k]; return !!r && r.hit + r.miss >= 20 && r.miss / (r.hit + r.miss) <= 0.06; };
+    const k = ch.toLowerCase();
+    return one(k) && (ch === k && !SHIFTED[ch] || one('^'));
   }
 
   /* Returns the daily streak bonus if this is the first finished level today, else 0 */
@@ -1160,7 +1184,7 @@ const Store = (() => {
   function addCoins(n) { S.coins = Math.max(0, S.coins + n); }
 
   return { load, save, reset, get, totalStars, stage, levelStars, worldLevels, worldDone, worldOpen, levelOpen,
-    nextLevel, highestIndex, weakKeys, noteKey, touchStreak, addCoins, today, owns, give, ownKey, priceOf, grantRewards,
+    nextLevel, highestIndex, weakKeys, noteKey, mastered, touchStreak, addCoins, today, owns, give, ownKey, priceOf, grantRewards,
     getCheckpoint, setCheckpoint, clearCheckpoint, exportSave, inspectBackup, restoreBackup,
     isMemoryOnly: () => memoryOnly, getLoadWarning: () => loadWarning };
 })();
@@ -2565,9 +2589,9 @@ const FOE_INFO = {
 const EMBER_SKIN = { a: '#ff7a3d', b: '#7a1030', fin: '#ffd23f', belly: '#ffd9b0', glow: '255,110,60' };
 const ASHEN_SKIN = { a: '#ff3d5a', b: '#1a0612', fin: '#ff9a3d', belly: '#ffb0a0', glow: '255,60,80' };
 const DIFFICULTY = {
-  calm:   { name: 'Calm',   text: 'No enemies. Just you, the keys and the music.' },
-  normal: { name: 'Normal', text: 'Optional battles on completed lessons. Two different slips in one word let an enemy strike. No timer.' },
-  fierce: { name: 'Fierce', text: 'Optional battles on completed lessons, with a word timer. Pays 25% more shards. Learning flights stay gentle.' },
+  calm:   { name: 'Calm',   text: 'No enemies and no bosses. Just the missions.' },
+  normal: { name: 'Normal', text: 'Each world ends with a boss. Other battles are optional on finished lessons. No timer.' },
+  fierce: { name: 'Fierce', text: 'As Normal, but enemies and bosses also strike if a word takes too long. Pays 25% more shards.' },
 };
 
 /* ---------------- how each enemy is drawn (all face left, toward the dragon) ---------------- */
@@ -2644,7 +2668,9 @@ class Combat {
   /* is there fighting on this level, given the difficulty she chose? */
   static on(idx, challenge = false) {
     const d = Store.get().settings.difficulty;
-    return !!challenge && !!LEVELS[idx] && Store.levelStars(LEVELS[idx].id) > 0 && d !== 'calm';
+    if (d === 'calm' || !LEVELS[idx]) return false;
+    if (BOSS_LEVELS.has(LEVELS[idx].id)) return true;            // the last level of a world is always its boss
+    return !!challenge && Store.levelStars(LEVELS[idx].id) > 0;  // other battles are an optional replay
   }
   static moves() {
     const S = Store.get();
@@ -2863,7 +2889,7 @@ class Combat {
     this.cast = null; if (this.castEl) { this.castEl.remove(); this.castEl = null; }
     Scene.slowmo = false; this.lv.el.classList.remove('casting');
     const L = this.lv.L; L.lastT = 0;
-    if (L.phase === 'play') this.lv.kb.target(L.lines[L.li][L.pos]);
+    if (L.phase === 'play') this.lv.aim();
     this.hud();
   }
   fizzle(e) {
@@ -3206,17 +3232,18 @@ const Keyboard = (() => {
         useFinger(p.shiftFinger, 'pinky on Shift');
       }
     }
-    function target(ch) {
+    /* quiet: she knows this key, so show nothing unless she pauses or asks */
+    function target(ch, quiet = memory) {
       clear();
       if (ch == null || destroyed) return;
       current = ch;
-      if (!memory) { reveal(); return; }
-      if (title) title.textContent = 'Try this key from memory';
-      if (detail) detail.textContent = 'A hint appears after a short pause. You can ask for it any time.';
-      if (badge) badge.textContent = '?';
+      if (!quiet) { reveal(); return; }
+      if (title) title.textContent = 'Eyes on the screen';
+      if (detail) detail.textContent = 'You know this key. A hint appears if you pause.';
+      if (badge) badge.textContent = '\u2713';
       if (coach) coach.classList.add('awaiting-hint');
       if (help) help.hidden = false;
-      pending = setTimeout(reveal, 1200);
+      pending = setTimeout(reveal, 1500);
     }
     function setMemoryHints(enabled) { memory = !!enabled; const ch = current; if (ch != null) target(ch); }
     function onHelp(event) { event.preventDefault(); reveal(); help.blur(); }
@@ -3255,103 +3282,236 @@ const Keyboard = (() => {
   return { markup, create, plan, fingerName, fingerOf, coaching };
 })();
 
-
-/* Adventure objectives accompany the existing, progressively taught key sets. */
+/* ---- missions.js ---- */
+/* Dragon Keys - story missions. Each mission is a scene across the sky that the dragon
+   builds as she types: every finished word lights one more piece, and finishing the
+   level plays a short ending. */
 'use strict';
+
 const Missions = (() => {
   const objectives = [
-    { kind:'bridge', title:'The starlight crossing', goal:'A broken sky bridge separates two islands. Each completed phrase restores another piece.', success:'The bridge is open. Travellers can cross again.' },
-    { kind:'rescue', title:'A friend in the clouds', goal:'A little sky owl has lost its way. Light a trail so it can fly safely home.', success:'Your sky owl friend is home. It gives you a thankful little bow.' },
-    { kind:'garden', title:'The sleeping garden', goal:'The wind garden needs a little dragon magic. Each phrase helps another flower bloom.', success:'The garden is awake, and its flowers are dancing in the breeze.' },
-    { kind:'beacon', title:'The missing lights', goal:'The guiding beacon has gone dark. Gather light as you type and help it shine again.', success:'The beacon shines. Every dragon can find the path home.' },
-    { kind:'mend', title:'The cloud engine', goal:'An island has drifted off course. Restore the rings of its cloud engine, one phrase at a time.', success:'The cloud engine is turning. The island is back on its gentle course.' },
-    { kind:'chart', title:'A map of small wonders', goal:'An explorer left an unfinished star map. Reveal its hidden constellation with your dragon.', success:'A new constellation fills the map. Where will it lead next?' },
+    { kind: 'bridge', pieces: 20, title: 'The starlight crossing', goal: 'A sky bridge has gone dark. Every word you finish lights another plank.', success: 'The bridge is open. Travellers can cross again.' },
+    { kind: 'rescue', pieces: 16, title: 'A friend in the clouds', goal: 'A sky owl has lost its way. Light a trail of stars to lead it home.', success: 'The sky owl is home, and it knows who to thank.' },
+    { kind: 'garden', pieces: 18, title: 'The sleeping garden', goal: 'The wind garden is asleep. Every word you finish wakes another flower.', success: 'The garden is awake and dancing in the breeze.' },
+    { kind: 'beacon', pieces: 14, title: 'The missing lights', goal: 'The beacon has gone dark. Gather the lost lights and send them home.', success: 'The beacon shines. Every dragon can find the way.' },
+    { kind: 'mend', pieces: 16, title: 'The cloud engine', goal: 'An island is drifting. Restart its cloud engine, one ring at a time.', success: 'The engine is turning and the island is back on course.' },
+    { kind: 'chart', pieces: 14, title: 'A map of small wonders', goal: 'An explorer left a star map unfinished. Join the stars to reveal it.', success: 'A new constellation fills the map.' },
   ];
-  const places = ['Meadow','Peaks','Cavern','Citadel','Summit'];
+  const places = ['Meadow', 'Peaks', 'Cavern', 'Citadel', 'Summit'];
   const unlocks = [
-    { at:1, id:'hello', name:'A dragon greeting', text:'Your dragon greets you by name at the lair.' },
-    { at:2, id:'loop', name:'Sky loop', text:'Your dragon learned Sky Loop. Try it in the lair.' },
-    { at:4, id:'lanterns', name:'Floating lanterns', text:'Warm lanterns now float around your lair.' },
-    { at:6, id:'owl', name:'A visiting sky owl', text:'A sky owl has made your lair its favourite stopping place.' },
-    { at:8, id:'heart', name:'Heart flight', text:'Your dragon learned Heart Flight. Try your new trick in the lair.' },
-    { at:10, id:'flowers', name:'A wind garden', text:'A little wind garden blooms in your lair.' },
-    { at:14, id:'eight', name:'Ribbon flight', text:'Your dragon learned Ribbon Flight. Choose it in the lair.' },
-    { at:18, id:'pennants', name:'Explorer pennants', text:'Your lair now flies the colours of a seasoned explorer.' },
-    { at:22, id:'sparks', name:'Firefly friends', text:'Gentle fireflies have joined your dragon at home.' },
-    { at:28, id:'stars', name:'Your constellation', text:'A dragon constellation glows above your lair.' },
+    { at: 1, id: 'hello', name: 'A dragon greeting', text: 'Your dragon greets you by name at the lair.' },
+    { at: 2, id: 'loop', name: 'Sky loop', text: 'Your dragon learned Sky Loop. Type "loop" in the lair.' },
+    { at: 4, id: 'lanterns', name: 'Floating lanterns', text: 'Warm lanterns now float around your lair.' },
+    { at: 6, id: 'owl', name: 'A visiting sky owl', text: 'A sky owl has made your lair its favourite stopping place.' },
+    { at: 8, id: 'heart', name: 'Heart flight', text: 'Your dragon learned Heart Flight. Type "heart" in the lair.' },
+    { at: 10, id: 'flowers', name: 'A wind garden', text: 'A wind garden blooms in your lair.' },
+    { at: 14, id: 'eight', name: 'Ribbon flight', text: 'Your dragon learned Ribbon Flight. Type "ribbon" in the lair.' },
+    { at: 18, id: 'pennants', name: 'Explorer pennants', text: 'Your lair now flies the colours of a seasoned explorer.' },
+    { at: 22, id: 'sparks', name: 'Firefly friends', text: 'Fireflies have joined your dragon at home.' },
+    { at: 28, id: 'stars', name: 'Your constellation', text: 'A dragon constellation glows above your lair.' },
   ];
-  function get(id, route=0) {
-    const level=LEVELS.find(l=>l.id===id)||LEVELS[0];
-    route=route===1?1:0;
-    const local=LEVELS.filter(l=>l.world===level.world).indexOf(level);
-    const objective=objectives[(local+(level.world-1)*2+route*3)%objectives.length];
-    return {...objective,id:level.id,route,world:level.world,title:`${places[level.world-1]} · ${objective.title}`};
+
+  function get(id, route = 0) {
+    const level = LEVELS.find(l => l.id === id) || LEVELS[0];
+    route = route === 1 ? 1 : 0;
+    const local = LEVELS.filter(l => l.world === level.world).indexOf(level);
+    const objective = objectives[(local + (level.world - 1) * 2 + route * 3) % objectives.length];
+    return { ...objective, id: level.id, route, world: level.world, title: `${places[level.world - 1]} · ${objective.title}` };
   }
-  const rewards = count => unlocks.filter(r=>r.at<=count);
+  /* the last level of a world is its finale: a boss, not a building job */
+  function boss(id) {
+    const level = LEVELS.find(l => l.id === id) || LEVELS[0], w = WORLDS[level.world - 1], foe = FOE_INFO[w.theme];
+    return { kind: 'boss', pieces: 0, id: level.id, route: 0, world: level.world, title: `${places[level.world - 1]} finale · ${foe.boss}`,
+      goal: `The ${foe.boss} blocks the way out of ${w.name}. Every word you finish weakens it.`,
+      success: `The ${foe.boss} is beaten. ${w.name} is safe.`, lost: `The ${foe.boss} got away this time. Your stars still count.` };
+  }
+  /* which of the two stories to tell: they alternate each time a level is played */
+  function autoRoute(id) { const r = Store.get().levels[id]; return r && r.plays % 2 ? 1 : 0; }
+
+  const rewards = count => unlocks.filter(r => r.at <= count);
   function rewardText(count) {
-    const earned=rewards(count), latest=earned.at(-1), next=unlocks.find(r=>r.at>count);
-    if(!latest) return 'Finish your first mission to earn a greeting from your dragon.';
-    return latest.text+(next?` Next discovery in ${next.at-count} mission${next.at-count===1?'':'s'}.`:' Your lair is full of the discoveries you made together.');
+    const earned = rewards(count), latest = earned.at(-1), next = unlocks.find(r => r.at > count);
+    if (!latest) return 'Finish your first mission to earn a greeting from your dragon.';
+    return latest.text + (next ? ` Next discovery in ${next.at - count} mission${next.at - count === 1 ? '' : 's'}.` : ' Your lair is full of the discoveries you made together.');
   }
-  function dot(c,x,y,r,color) { c.fillStyle=color;c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill(); }
-  function line(c,x,y,x2,y2,color,width=3) {c.strokeStyle=color;c.lineWidth=width;c.beginPath();c.moveTo(x,y);c.lineTo(x2,y2);c.stroke();}
-  function star(c,x,y,size,color) {
-    c.fillStyle=color;c.beginPath();
-    for(let i=0;i<10;i++){const a=i*Math.PI/5-Math.PI/2,r=size*(i%2?0.43:1);if(i)c.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r);else c.moveTo(x+Math.cos(a)*r,y+Math.sin(a)*r);}c.closePath();c.fill();
+
+  /* ---------- drawing ---------- */
+  const LIT = '#9dffe0', GOLD = '#ffd98a', DIM = 'rgba(130,160,225,.3)';
+  let ep = 0, lastT = 0, lastId = '';
+  const dot = (c, x, y, r, color) => { c.fillStyle = color; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); };
+  const seg = (c, x, y, x2, y2, color, width = 3) => { c.strokeStyle = color; c.lineWidth = width; c.beginPath(); c.moveTo(x, y); c.lineTo(x2, y2); c.stroke(); };
+  function halo(c, x, y, r, rgb, a) {
+    const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`);
+    c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.restore();
   }
-  function owl(c,x,y,t,size=1) {
-    c.save();c.translate(x,y);c.scale(size,size);
-    c.fillStyle='#b5e5f1'; c.beginPath();c.ellipse(-13,-2,17,7,-0.4-Math.sin(t*4)*0.15,0,Math.PI*2);c.fill();
-    c.beginPath();c.ellipse(13,-2,17,7,0.4+Math.sin(t*4)*0.15,0,Math.PI*2);c.fill();
-    dot(c,0,0,16,'#def9f8');dot(c,-6,-2,6,'#2d5c72');dot(c,6,-2,6,'#2d5c72');dot(c,-5,-3,2,'#fff');dot(c,5,-3,2,'#fff');
-    c.fillStyle='#f4c878';c.beginPath();c.moveTo(-3,5);c.lineTo(3,5);c.lineTo(0,10);c.closePath();c.fill();c.restore();
+  function star(c, x, y, size, color) {
+    c.fillStyle = color; c.beginPath();
+    for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 - Math.PI / 2, r = size * (i % 2 ? 0.43 : 1); if (i) c.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); else c.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r); }
+    c.closePath(); c.fill();
   }
-  function flower(c,x,y,t,color='#f3a9df') {
-    line(c,x,y,x+Math.sin(t)*3,y-28,'#67bcac',3);
-    for(let j=0;j<5;j++){const a=j*Math.PI*2/5;dot(c,x+Math.cos(a)*8,y-30+Math.sin(a)*8,6,color);}dot(c,x,y-30,5,'#ffe0a1');
+  function owl(c, x, y, t, size = 1) {
+    c.save(); c.translate(x, y); c.scale(size, size);
+    c.fillStyle = '#b5e5f1'; c.beginPath(); c.ellipse(-13, -2, 17, 7, -0.4 - Math.sin(t * 6) * 0.3, 0, TAU); c.fill();
+    c.beginPath(); c.ellipse(13, -2, 17, 7, 0.4 + Math.sin(t * 6) * 0.3, 0, TAU); c.fill();
+    dot(c, 0, 0, 16, '#def9f8'); dot(c, -6, -2, 6, '#2d5c72'); dot(c, 6, -2, 6, '#2d5c72'); dot(c, -5, -3, 2, '#fff'); dot(c, 5, -3, 2, '#fff');
+    c.fillStyle = '#f4c878'; c.beginPath(); c.moveTo(-3, 5); c.lineTo(3, 5); c.lineTo(0, 10); c.closePath(); c.fill(); c.restore();
   }
-  function draw(c,m,progress,t) {
-    if(!m)return;
-    const p=Math.max(0,Math.min(1,Number(progress)||0)),n=Math.floor(p*8),W=typeof App==='undefined'?1280:App.W;
-    c.save();c.translate(W*0.76,191);c.lineCap='round';c.lineJoin='round';
-    const halo=c.createRadialGradient(0,0,12,0,0,155);halo.addColorStop(0,'rgba(98,228,215,.12)');halo.addColorStop(1,'rgba(98,228,215,0)');c.fillStyle=halo;c.fillRect(-160,-112,320,210);
-    const base='#315b78',lit='#b5f4dd',gold='#ffe0a1';
-    if(m.kind==='bridge'){
-      c.fillStyle='#274a69';c.beginPath();c.moveTo(-144,45);c.lineTo(-88,45);c.lineTo(-116,88);c.closePath();c.fill();c.beginPath();c.moveTo(88,45);c.lineTo(144,45);c.lineTo(115,88);c.closePath();c.fill();
-      for(let i=0;i<8;i++){const x=-88+i*25;c.fillStyle=i<n?lit:base;c.fillRect(x,24+Math.sin(i/7*Math.PI)*-10,21,9);if(i<n)dot(c,x+10,17,2,gold);}
-      line(c,-115,25,-115,-10,gold,3);star(c,-115,-17,7,gold);line(c,116,25,116,-10,n===8?gold:base,3);star(c,116,-17,7,n===8?gold:base);
-    } else if(m.kind==='rescue'){
-      for(let i=0;i<8;i++)star(c,-114+i*31,16+Math.sin(i*.65)*21,5,i<n?gold:base);
-      c.strokeStyle=lit;c.lineWidth=3;c.beginPath();c.arc(119,-4,33,Math.PI,Math.PI*2);c.stroke();c.fillStyle='#6e6b76';c.fillRect(85,27,68,7);
-      owl(c,-115+p*224,-20+Math.sin(t*2)*5,t,1.2);
-    } else if(m.kind==='garden'){
-      c.fillStyle='#294f58';c.beginPath();c.ellipse(0,57,138,15,0,0,Math.PI*2);c.fill();
-      for(let i=0;i<8;i++){const x=-112+i*32,y=44+(i%2)*9;if(i<n)flower(c,x,y,t+i,['#ffb5de','#b3beff','#ffe0a1'][i%3]);else{line(c,x,y,x,y-10,'#457e73',2);dot(c,x,y-12,3,'#79bbaa');}}
-    } else if(m.kind==='beacon'){
-      c.fillStyle='#426279';c.fillRect(-28,-30,56,92);c.fillStyle='#d7c599';c.fillRect(-35,-36,70,8);c.fillRect(-36,58,72,8);
-      for(let i=0;i<8;i++){c.fillStyle=i<n?gold:base;c.fillRect(-18,46-i*10,36,6);}
-      dot(c,0,-54,14+p*5,p>0?gold:base);if(p>0){c.globalAlpha=p*.7;for(let i=0;i<6;i++){const a=-Math.PI+i*Math.PI/5;line(c,Math.cos(a)*29,-54+Math.sin(a)*29,Math.cos(a)*57,-54+Math.sin(a)*57,gold,2);}c.globalAlpha=1;}
-    } else if(m.kind==='mend'){
-      for(let i=0;i<8;i++){c.strokeStyle=i<n?lit:base;c.lineWidth=6;c.beginPath();c.arc(0,0,54,(i/8)*Math.PI*2+t*p*.25,(i/8)*Math.PI*2+.57+t*p*.25);c.stroke();}
-      c.save();c.rotate(t*p*.45);for(let i=0;i<3;i++){c.rotate(Math.PI*2/3);line(c,0,0,0,-35,gold,5);dot(c,0,-36,7,lit);}c.restore();dot(c,0,0,12,gold);
+  function flower(c, x, y, t, color, grow = 1) {
+    const h = 34 * grow, sway = Math.sin(t) * 4 * grow;
+    seg(c, x, y, x + sway, y - h, '#67d6b4', 3);
+    if (grow < 0.3) { dot(c, x + sway, y - h, 3, '#8fe3c6'); return; }
+    const r = 7 * Math.min(1, (grow - 0.3) / 0.7);
+    for (let j = 0; j < 5; j++) { const a = j * TAU / 5 + t * 0.3; dot(c, x + sway + Math.cos(a) * r * 1.2, y - h + Math.sin(a) * r * 1.2, r, color); }
+    dot(c, x + sway, y - h, r * 0.8, '#fff2c0');
+  }
+
+  /* where each piece of a scene sits. X0..X1 is the stretch of sky the scene uses. */
+  function layout(m, n, W) {
+    const X0 = W * 0.41, X1 = W - 56, span = X1 - X0, P = [];
+    for (let i = 0; i < n; i++) {
+      const u = n > 1 ? i / (n - 1) : 0.5;
+      if (m.kind === 'bridge') P.push([X0 + 46 + u * (span - 92), 238 - Math.sin(u * Math.PI) * 26]);
+      else if (m.kind === 'rescue') P.push([X0 + 20 + u * (span - 150), 176 + Math.sin(u * 7.5) * 46 - u * 20]);
+      else if (m.kind === 'garden') P.push([X0 + 30 + u * (span - 60), 250 - Math.sin(u * Math.PI) * 10 + (i % 2) * 5]);
+      else if (m.kind === 'beacon') P.push([X0 + 10 + hash(i, 31) * (span - 190), 104 + hash(i, 37) * 130]);
+      else if (m.kind === 'mend') { const a = -Math.PI / 2 + i * TAU / n; P.push([X0 + span * 0.6 + Math.cos(a) * 84, 168 + Math.sin(a) * 84]); }
+      else { const pts = [[0, .62], [.09, .3], [.18, .52], [.27, .2], [.37, .36], [.46, .62], [.55, .3], [.64, .5], [.73, .16], [.8, .42], [.87, .66], [.93, .34], [.97, .54], [1, .26]]; const q = pts[Math.round(u * (pts.length - 1))]; P.push([X0 + 20 + q[0] * (span - 40), 96 + q[1] * 150]); }
+    }
+    return { X0, X1, span, P };
+  }
+  const pieces = (m, total) => Math.max(1, Math.min(m.pieces || 1, total));
+  /* the piece that the word just finished has lit, so the level can aim a beam of light at it */
+  function spot(m, wordsDone, total) {
+    if (!m || m.kind === 'boss') return null;
+    const n = pieces(m, total), k = Math.floor(wordsDone / total * n + 1e-6), before = Math.floor((wordsDone - 1) / total * n + 1e-6);
+    if (k === before || k < 1) return null;
+    const L = layout(m, n, App.W), p = L.P[k - 1];
+    return m.kind === 'beacon' ? { x: p[0], y: p[1] } : { x: p[0], y: p[1] - (m.kind === 'garden' ? 30 : 0) };
+  }
+
+  /* st: { done, total (words), t (seconds), finale (seconds since the last word, or -1) } */
+  function draw(c, m, st) {
+    if (!m || m.kind === 'boss') return;
+    const W = App.W, n = pieces(m, st.total), p = st.total ? st.done / st.total : 0;
+    if (m.id + m.route !== lastId || st.t < lastT) { lastId = m.id + m.route; ep = p; }
+    const dt = Math.min(0.05, Math.max(0, st.t - lastT)); lastT = st.t;
+    ep += (p - ep) * (1 - Math.exp(-7 * dt));
+    const k = Math.floor(p * n + 1e-6), f = st.finale, t = st.t, L = layout(m, n, W), P = L.P, X0 = L.X0, X1 = L.X1;
+    const fin = f >= 0 ? Math.min(1, f / 1.6) : 0;
+    c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
+
+    if (m.kind === 'bridge') {
+      for (const [x, s] of [[X0 + 6, 1], [X1 - 6, -1]]) {   // an island at each end, with a lamp post
+        c.fillStyle = '#16264f'; c.beginPath(); c.moveTo(x - 40, 244); c.lineTo(x + 40, 244); c.lineTo(x + s * 8, 300); c.closePath(); c.fill();
+        seg(c, x, 244, x, 196, '#31508a', 4);
+        const on = s === 1 ? k > 0 : k >= n;
+        if (on) halo(c, x, 190, 46, '255,217,138', 0.5 + fin * 0.3);
+        star(c, x, 190, 8, on ? GOLD : '#3a5a8f');
+      }
+      c.strokeStyle = 'rgba(130,160,225,.35)'; c.lineWidth = 1.5; c.beginPath();
+      for (let i = 0; i < n; i++) c.lineTo(P[i][0], P[i][1] - 26); c.stroke();
+      for (let i = 0; i < n; i++) {
+        const [x, y] = P[i], lit = i < k, w = (L.span - 92) / n * 0.72;
+        if (lit) halo(c, x, y, 26, '157,255,224', 0.3);
+        c.fillStyle = lit ? LIT : DIM; c.fillRect(x - w / 2, y - 4, w, 8);
+        seg(c, x, y - 4, x, y - 26, lit ? 'rgba(157,255,224,.7)' : 'rgba(130,160,225,.25)', 1.5);
+      }
+      if (f >= 0) for (let j = 0; j < 4; j++) {   // travellers with lanterns cross
+        const u = clamp(fin * 1.25 - j * 0.12, 0, 1), i = Math.min(n - 1, Math.floor(u * (n - 1))), q = P[i];
+        if (u <= 0) continue;
+        halo(c, q[0], q[1] - 16, 22, '255,217,138', 0.6); dot(c, q[0], q[1] - 12, 5, '#fff2c0'); dot(c, q[0], q[1] - 22, 3.5, GOLD);
+      }
+    } else if (m.kind === 'rescue') {
+      const hx = X1 - 70, hy = 150;   // the owl's home: a ring with a perch
+      c.strokeStyle = k >= n ? GOLD : '#3a5a8f'; c.lineWidth = 4; c.beginPath(); c.arc(hx, hy, 40, Math.PI * 0.85, Math.PI * 2.15); c.stroke();
+      seg(c, hx - 30, hy + 30, hx + 30, hy + 30, k >= n ? GOLD : '#3a5a8f', 5);
+      if (k >= n) halo(c, hx, hy, 80, '255,217,138', 0.25 + fin * 0.35);
+      for (let i = 0; i < n; i++) {
+        const [x, y] = P[i], lit = i < k;
+        if (i) seg(c, P[i - 1][0], P[i - 1][1], x, y, lit ? 'rgba(157,255,224,.55)' : 'rgba(130,160,225,.14)', 1.5);
+        if (lit) halo(c, x, y, 20, '255,217,138', 0.45);
+        star(c, x, y, lit ? 7 : 4.5, lit ? GOLD : '#3a5a8f');
+      }
+      const at = clamp(ep * n - 0.5, 0, n - 1), i0 = Math.floor(at), i1 = Math.min(n - 1, i0 + 1), u = at - i0;
+      let ox = lerp(P[i0][0], P[i1][0], u), oy = lerp(P[i0][1], P[i1][1], u) - 24;
+      if (f >= 0) { ox = lerp(ox, hx, fin); oy = lerp(oy, hy + 12, fin) - Math.sin(fin * Math.PI) * 40; }
+      owl(c, ox, oy + Math.sin(t * 2.4) * 4, t, 1.25);
+      if (fin >= 1) for (let j = 0; j < 5; j++) star(c, hx + Math.cos(t * 2 + j * 1.26) * 62, hy + Math.sin(t * 2 + j * 1.26) * 62, 4, GOLD);
+    } else if (m.kind === 'garden') {
+      c.fillStyle = '#12304a'; c.beginPath(); c.ellipse((X0 + X1) / 2, 262, L.span / 2 + 6, 16, 0, 0, TAU); c.fill();
+      c.strokeStyle = 'rgba(103,214,180,.5)'; c.lineWidth = 1.5; c.beginPath(); c.ellipse((X0 + X1) / 2, 262, L.span / 2 + 6, 16, 0, Math.PI, TAU); c.stroke();
+      const cols = ['#ff9fd6', '#b3beff', '#ffd98a', '#9dffe0'];
+      for (let i = 0; i < n; i++) {
+        const [x, y] = P[i], grow = clamp(ep * n - i, 0, 1);
+        if (grow > 0.3) halo(c, x, y - 32, 22, '255,159,214', 0.22 * grow);
+        flower(c, x, y, t * (1.2 + fin * 2) + i, cols[i % 4], 0.22 + grow * (0.78 + fin * 0.25));
+      }
+      if (f >= 0) for (let j = 0; j < 22; j++) {   // petals lift off on the breeze
+        const u = (fin * 1.3 + hash(j, 3)) % 1, x = X0 + hash(j, 5) * L.span + Math.sin(t * 2 + j) * 14;
+        c.globalAlpha = (1 - u) * fin; dot(c, x, 230 - u * 150, 3, cols[j % 4]); c.globalAlpha = 1;
+      }
+    } else if (m.kind === 'beacon') {
+      const bx = X1 - 60, top = 112;
+      c.fillStyle = '#1a2c58'; c.beginPath(); c.moveTo(bx - 26, 262); c.lineTo(bx - 15, top + 22); c.lineTo(bx + 15, top + 22); c.lineTo(bx + 26, 262); c.closePath(); c.fill();
+      c.fillStyle = '#31508a'; c.fillRect(bx - 22, top + 14, 44, 8);
+      for (let i = 0; i < n; i++) {
+        const u = clamp(ep * n - i, 0, 1), [x, y] = P[i];
+        if (u >= 1) continue;
+        const px = lerp(x, bx, u * u), py = lerp(y, top, u * u) - Math.sin(u * Math.PI) * 30 + Math.sin(t * 2 + i) * 5 * (1 - u);
+        halo(c, px, py, 18, u > 0 ? '255,217,138' : '130,160,225', u > 0 ? 0.6 : 0.3);
+        dot(c, px, py, 4.5, u > 0 ? GOLD : '#7f97cf');
+      }
+      const b = k / n;
+      if (b > 0) halo(c, bx, top, 30 + b * 60, '255,217,138', 0.25 + b * 0.5);
+      dot(c, bx, top, 11 + b * 5, b > 0 ? GOLD : '#3a5a8f');
+      if (b > 0) for (let i = 0; i < 8; i++) { const a = i * TAU / 8 + t * 0.4; seg(c, bx + Math.cos(a) * 24, top + Math.sin(a) * 24, bx + Math.cos(a) * (30 + b * 22), top + Math.sin(a) * (30 + b * 22), `rgba(255,217,138,${0.3 + b * 0.5})`, 2); }
+      if (f >= 0) {   // the beam sweeps the sky
+        const a = Math.PI + 0.25 + Math.sin(f * 2.2) * 0.55, g = c.createLinearGradient(bx, top, bx + Math.cos(a) * 900, top + Math.sin(a) * 900);
+        g.addColorStop(0, `rgba(255,230,160,${0.55 * fin})`); g.addColorStop(1, 'rgba(255,230,160,0)');
+        c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.beginPath(); c.moveTo(bx, top);
+        c.lineTo(bx + Math.cos(a - 0.09) * 950, top + Math.sin(a - 0.09) * 950); c.lineTo(bx + Math.cos(a + 0.09) * 950, top + Math.sin(a + 0.09) * 950); c.closePath(); c.fill(); c.restore();
+      }
+    } else if (m.kind === 'mend') {
+      const cx = X0 + L.span * 0.6, cy = 168 - fin * 14, spin = t * (0.15 + ep * 1.1 + fin * 2.5);
+      c.fillStyle = '#16264f'; c.beginPath(); c.moveTo(cx - 150, cy + 96); c.lineTo(cx + 150, cy + 96); c.lineTo(cx + 40, cy + 150); c.lineTo(cx - 60, cy + 140); c.closePath(); c.fill();
+      if (k > 0) halo(c, cx, cy, 130, '157,255,224', 0.1 + ep * 0.2 + fin * 0.2);
+      for (let i = 0; i < n; i++) {
+        const a0 = -Math.PI / 2 + i * TAU / n + 0.05, a1 = a0 + TAU / n - 0.1, lit = i < k;
+        c.strokeStyle = lit ? LIT : DIM; c.lineWidth = lit ? 9 : 6; c.beginPath(); c.arc(cx, cy, 84, a0, a1); c.stroke();
+      }
+      c.save(); c.translate(cx, cy); c.rotate(spin);
+      for (let i = 0; i < 3; i++) { c.rotate(TAU / 3); seg(c, 0, 0, 0, -56, k > 0 ? GOLD : '#3a5a8f', 6); dot(c, 0, -58, 9, k > 0 ? LIT : '#3a5a8f'); }
+      c.restore(); dot(c, cx, cy, 14, k > 0 ? GOLD : '#3a5a8f');
+      if (f >= 0) for (let j = 0; j < 9; j++) { const u = (fin + j / 9) % 1; c.globalAlpha = (1 - u) * 0.5 * fin; dot(c, cx - 40 + j * 10 + Math.sin(t + j) * 8, cy + 130 + u * 70, 12 + u * 14, '#cfe6ff'); c.globalAlpha = 1; }
     } else {
-      const pts=[[-120,20],[-87,-30],[-50,8],[-16,-45],[24,-22],[56,22],[88,-14],[123,14]];
-      for(let i=0;i<pts.length;i++){const[x,y]=pts[i];if(i)line(c,pts[i-1][0],pts[i-1][1],x,y,i<n?'#8edbd0':base,2);star(c,x,y,7,i<n?gold:base);}
+      for (let i = 0; i < n; i++) {
+        const [x, y] = P[i], lit = i < k;
+        if (i) seg(c, P[i - 1][0], P[i - 1][1], x, y, lit ? `rgba(157,255,224,${0.6 + fin * 0.4})` : 'rgba(130,160,225,.12)', lit ? 2 + fin * 1.5 : 1);
+        if (lit) halo(c, x, y, 22 + fin * 14, '255,217,138', 0.45);
+        star(c, x, y, lit ? 8 + fin * 3 * (0.5 + 0.5 * Math.sin(t * 6 + i)) : 4.5, lit ? GOLD : '#3a5a8f');
+      }
+      if (f >= 0) {   // a shooting star crosses the finished map
+        const u = clamp(f / 1.2, 0, 1), sx = lerp(X0, X1, u), sy = 96 + u * 40;
+        c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(sx - 160, sy - 24, sx, sy); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, `rgba(255,255,255,${1 - u})`);
+        c.strokeStyle = g; c.lineWidth = 3; c.beginPath(); c.moveTo(sx - 160, sy - 24); c.lineTo(sx, sy); c.stroke(); c.restore();
+      }
     }
     c.restore();
   }
-  function drawLair(c,count,t) {
-    const has=id=>rewards(count).some(r=>r.id===id),W=App.W;
+
+  function drawLair(c, count, t) {
+    const has = id => rewards(count).some(r => r.id === id), W = App.W;
     c.save();
-    if(has('stars')){for(let i=0;i<7;i++){const x=W*.35+i*44,y=105+Math.sin(i*1.2)*22;star(c,x,y,4,'#ffe0a1');if(i)line(c,x-44,105+Math.sin((i-1)*1.2)*22,x,y,'rgba(183,220,246,.3)',1);}}
-    if(has('lanterns')){for(let i=0;i<3;i++){const x=W*.35+i*W*.13,y=170+Math.sin(t+i)*8;line(c,x,y-18,x,y+25,'#8ea8a6',1);dot(c,x,y,11,'rgba(255,211,129,.22)');dot(c,x,y,5,'#ffe0a1');}}
-    if(has('pennants')){line(c,W*.34,130,W*.66,130,'#78bcae',1);for(let i=0;i<5;i++){c.fillStyle=['#a8d8e7','#d6b4e8','#f8d793'][i%3];c.beginPath();c.moveTo(W*.35+i*W*.065,130);c.lineTo(W*.35+i*W*.065+17,130);c.lineTo(W*.35+i*W*.065+8,150);c.closePath();c.fill();}}
-    if(has('flowers'))for(let i=0;i<8;i++)flower(c,W*.35+i*38,568+(i%2)*5,t+i);
-    if(has('owl'))owl(c,W*.65,485+Math.sin(t*1.5)*6,t,1.5);
-    if(has('sparks'))for(let i=0;i<14;i++)dot(c,W*.36+Math.sin(i*13+t*.3)*120+i*16,450+Math.cos(i*5+t*.5)*65,1.5,'#ffe0a1');
+    if (has('stars')) { for (let i = 0; i < 7; i++) { const x = W * .35 + i * 44, y = 105 + Math.sin(i * 1.2) * 22; star(c, x, y, 4, '#ffe0a1'); if (i) seg(c, x - 44, 105 + Math.sin((i - 1) * 1.2) * 22, x, y, 'rgba(183,220,246,.3)', 1); } }
+    if (has('lanterns')) { for (let i = 0; i < 3; i++) { const x = W * .35 + i * W * .13, y = 170 + Math.sin(t + i) * 8; seg(c, x, y - 18, x, y + 25, '#8ea8a6', 1); dot(c, x, y, 11, 'rgba(255,211,129,.22)'); dot(c, x, y, 5, '#ffe0a1'); } }
+    if (has('pennants')) { seg(c, W * .34, 130, W * .66, 130, '#78bcae', 1); for (let i = 0; i < 5; i++) { c.fillStyle = ['#a8d8e7', '#d6b4e8', '#f8d793'][i % 3]; c.beginPath(); c.moveTo(W * .35 + i * W * .065, 130); c.lineTo(W * .35 + i * W * .065 + 17, 130); c.lineTo(W * .35 + i * W * .065 + 8, 150); c.closePath(); c.fill(); } }
+    if (has('flowers')) for (let i = 0; i < 8; i++) flower(c, W * .35 + i * 38, 568 + (i % 2) * 5, t + i, ['#ff9fd6', '#b3beff', '#ffd98a'][i % 3]);
+    if (has('owl')) owl(c, W * .27, 452 + Math.sin(t * 1.5) * 6, t, 1.5);
+    if (has('sparks')) for (let i = 0; i < 14; i++) dot(c, W * .36 + Math.sin(i * 13 + t * .3) * 120 + i * 16, 450 + Math.cos(i * 5 + t * .5) * 65, 1.5, '#ffe0a1');
     c.restore();
   }
-  return {get,rewards,rewardText,draw,drawLair};
+
+  return { get, boss, autoRoute, rewards, rewardText, draw, drawLair, spot };
 })();
 
 /* ---- ui.js ---- */
@@ -3543,60 +3703,47 @@ const App = (() => {
 })();
 
 
-/* Mission choice and an untimed, eight-key hand-position warmup. */
+/* The home-key warm-up. It runs before the first flight of each day, then gets out of the way. */
 'use strict';
 App.register('briefing', {
-  enter(el, {id,skipWarmup=false}={}) {
-    const level=LEVELS.find(l=>l.id===id)||Store.nextLevel();
-    if(!Store.levelOpen(level.id)){App.go('den');return;}
-    this.id=level.id;this.level=level;this.skipWarmup=skipWarmup;this.phase='choice';this.taps=0;
-    Scene.setTheme(WORLDS[level.world-1].theme);Scene.setHorizon(0);Scene.setSpeed(12);
-    Sound.music('home');Sound.setEnergy(.25);
-    el.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b)this.act(b.dataset.act,b);});
-    this.choose();
-  },
-  choose() {
-    const checkpoint=Store.getCheckpoint();
-    const replaces=checkpoint && checkpoint.id!==this.id;
-    this.el.innerHTML=`${App.hud({back:true,title:'Choose an adventure',sub:this.level.title})}
-      <div class="adventure-heading"><div class="kicker">Same keys · two paths</div><h2>Where shall we help today?</h2><p>Both missions practise ${esc(this.level.title)}. Choose the story you like.</p></div>
-      <div class="mission-choices">${[0,1].map(route=>{const m=Missions.get(this.id,route);return `<button class="mission-choice panel" data-act="choose" data-route="${route}"><span class="mission-symbol">${ic(['bridge','mend','chart'].includes(m.kind)?'map':'star')}</span><span class="kicker">Adventure ${route+1}</span><h3>${esc(m.title)}</h3><p>${esc(m.goal)}</p><span class="mission-cta">Choose this mission ${ic('next')}</span></button>`;}).join('')}</div>
-      <div class="adventure-footnote">${replaces ? 'Starting this mission replaces your unfinished checkpoint. Completed levels stay saved.' : this.skipWarmup ? 'One more little adventure. No timer in learning missions.' : 'A short F + J warmup, two missions, then a chance to rest. No timer in learning missions.'}</div>`;
-  },
-  warmup() {
-    this.phase='warmup';this.taps=0;
-    const S=Store.get();
-    this.el.innerHTML=`${App.hud({back:true,title:'Hands ready',sub:'Warmup · no score or timer'})}
-      <div class="warmup-heading panel"><div class="kicker">A little ritual before flying</div><h2>Find the bumps. Find your home.</h2><p>Left index on <b>F</b>. Right index on <b>J</b>. Rest your other fingers beside them.</p><p>Alternate the two index fingers to wake ${esc(S.pet.name||'your dragon')}.</p><div class="warmup-taps" aria-label="Warmup progress">${'<i></i>'.repeat(8)}</div><span class="warmup-note" role="status">8 gentle taps. Take your time.</span></div>
+  enter(el, { id } = {}) {
+    const level = LEVELS.find(l => l.id === id) || Store.nextLevel(), S = Store.get();
+    if (!Store.levelOpen(level.id)) { App.go('den'); return; }
+    this.id = level.id; this.taps = 0;
+    Scene.setTheme(WORLDS[level.world - 1].theme); Scene.setHorizon(0); Scene.setSpeed(12);
+    Sound.music('home'); Sound.setEnergy(.25);
+    el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) this.act(b.dataset.act); });
+    el.innerHTML = `${App.hud({ back: true, title: 'Hands ready', sub: 'Once a day · no score or timer' })}
+      <div class="warmup-heading panel"><div class="kicker">Today's warm-up</div><h2>Find the bumps on F and J</h2>
+        <p>Left index on <b>F</b>. Right index on <b>J</b>. Tap them in turn to wake ${esc(S.pet.name || 'your dragon')}.</p>
+        <div class="warmup-taps" aria-label="Warm-up progress">${'<i></i>'.repeat(8)}</div><span class="warmup-note" role="status">8 taps, then you fly.</span>
+        <div style="margin-top:12px"><button class="btn small" data-act="skip">Skip today</button></div></div>
       <div class="kb-dock panel">${Keyboard.markup()}</div>`;
-    this.kb=Keyboard.create(this.el);this.kb.setLearned('fj');this.kb.target('f');
+    this.kb = Keyboard.create(el); this.kb.setLearned('fj'); this.kb.target('f', false);
   },
-  act(a,b) {
-    if(a==='back'){Sound.click();App.go('den');}
-    else if(a==='choose' && this.phase==='choice'){
-      this.route=Number(b.dataset.route)===1?1:0;Sound.click();
-      if(this.skipWarmup)this.launch();else this.warmup();
-    }
+  act(a) {
+    if (a === 'back') { Sound.click(); App.go('den'); }
+    else if (a === 'skip') { Sound.click(); this.launch(); }
   },
-  launch(){App.go('level',{id:this.id,route:this.route});},
+  launch() {
+    const S = Store.get();
+    S.adventure.warmDay = Store.today(); Store.save();
+    App.go('level', { id: this.id, route: Missions.autoRoute(this.id) });
+  },
   key(e) {
-    if(e.ctrlKey||e.altKey||e.metaKey)return;
-    if(e.key==='Escape'){this.act('back');return;}
-    if(this.phase==='choice'){
-      if(e.key==='1'||e.key==='2')this.act('choose',{dataset:{route:String(Number(e.key)-1)}});
-      return;
-    }
-    if(e.key.length!==1)return;
-    const want=this.taps%2?'j':'f',ok=e.key.toLowerCase()===want;
-    this.kb.press(e,ok);
-    if(!ok){$('.warmup-note',this.el).textContent=`Try ${want.toUpperCase()} with your ${want==='f'?'left':'right'} index finger. No points lost.`;return;}
-    this.taps++;Sound.key(this.taps,0);
-    $$('.warmup-taps i',this.el).forEach((el,i)=>el.classList.toggle('on',i<this.taps));
-    if(this.taps===8){this.launch();return;}
-    $('.warmup-note',this.el).textContent=`${8-this.taps} gentle tap${this.taps===7?'':'s'} to go.`;
-    this.kb.target(this.taps%2?'j':'f');
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.key === 'Escape') { this.act('back'); return; }
+    if (e.key.length !== 1) return;
+    const want = this.taps % 2 ? 'j' : 'f', ok = e.key.toLowerCase() === want;
+    this.kb.press(e, ok);
+    if (!ok) { $('.warmup-note', this.el).textContent = `Try ${want.toUpperCase()} with your ${want === 'f' ? 'left' : 'right'} index finger.`; return; }
+    this.taps++; Sound.key(this.taps, 0);
+    $$('.warmup-taps i', this.el).forEach((el, i) => el.classList.toggle('on', i < this.taps));
+    if (this.taps === 8) { this.launch(); return; }
+    $('.warmup-note', this.el).textContent = `${8 - this.taps} to go.`;
+    this.kb.target(this.taps % 2 ? 'j' : 'f', false);
   },
-  exit(){if(this.kb){this.kb.destroy();this.kb=null;}}
+  exit() { if (this.kb) { this.kb.destroy(); this.kb = null; } },
 });
 
 /* ---- screens.js ---- */
@@ -3729,18 +3876,19 @@ App.register('den', {
   TIPS: [
     'Stars come from accuracy. Slow and clean beats fast and messy.',
     'Keep your eyes on the screen. The glowing key shows where to go.',
-    'Each completed phrase helps your mission take shape.',
+    'Every word you finish builds a little more of the mission.',
     'Index fingers rest on F and J. Feel for the small bumps.',
     'Two missions make a little adventure. You can stop and come back.',
     'Three stars need 98% accuracy. Replay a level to chase them.',
-    'Battles are optional. Practise a lesson first, then try its challenge.',
+    'Every world ends with a boss. Other battles are an optional replay.',
+    'Type a word in the lair to make your dragon play. Try its name too.',
     'Mana full? Press Enter and type the power word.',
   ],
   enter(el, params = {}) {
     const next = Store.nextLevel();
     Scene.setTheme(WORLDS[next.world - 1].theme); Scene.setHorizon(0); Scene.setSpeed(22);
     Sound.music('home'); Sound.setEnergy(0.3);
-    this.t = 0; this.trickTime = 0; this.trick = null;
+    this.t = 0; this.trickTime = 0; this.trick = null; this.buf = '';
     this.tip = params.welcome ? `Welcome, ${Store.get().kid}. Your first adventure is waiting.` : Content.pick(this.TIPS);
     el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) this.act(b.dataset.act, b); });
     this.d = App.myDragon({ size: [1.8, 1.5, 1.3, 1.15][Store.stage()] }); this.d.place(App.W * 0.6, 330);
@@ -3756,7 +3904,7 @@ App.register('den', {
     const allDone = LEVELS.every(l => Store.levelStars(l.id) > 0);
     const n = Store.worldLevels(next.world).indexOf(next) + 1, got = Store.levelStars(next.id);
     const checkpoint = Store.getCheckpoint(), pending = checkpoint && LEVELS.find(l=>l.id===checkpoint.id);
-    const rewards = Missions.rewards(S.adventure.completed), tricks = rewards.filter(r=>['loop','heart','eight'].includes(r.id));
+    const cmds = this.commands().filter(c => !c.secret);
     el.innerHTML = `${App.hud({ title: 'The Lair', sub: WORLDS[next.world - 1].name })}
       <div class="lair-card panel">
         <div class="kicker">${STAGE_NAMES[st]}</div><h3>${esc(S.pet.name)}</h3>
@@ -3774,12 +3922,13 @@ App.register('den', {
         <h4>${esc(pending ? pending.title : next.title)}</h4><p>${pending ? 'Your unfinished mission is waiting.' : `World ${next.world} · Level ${n} · ${WORLDS[next.world - 1].skill}`}</p>
         <div class="stars">${[0, 1, 2].map(i => ic(i < (pending ? Store.levelStars(pending.id) : got) ? 'star' : 'starOff')).join('')}</div>
         <span class="adventure-count">${S.adventure.sessionCount} of 2 missions this adventure</span>
-        <p class="checkpoint-note">${pending ? 'Continue from the key you reached. Your dragon remembers the way.' : 'Start with F + J. Choose a mission. Learn at your own pace.'}</p>
+        <p class="checkpoint-note">${pending ? 'Continue from the key you reached. Your dragon remembers the way.' : 'Press Enter to fly. Two missions make an adventure.'}</p>
         <button class="btn" data-act="map">${ic('map')} Choose a lesson</button>
         <p class="checkpoint-note">${Store.isMemoryOnly() ? 'Saving is unavailable in this browser. Use Stats → Export backup before closing.' : 'Saved in this browser. Stats has backup and restore.'}</p>
       </div>
-      <div class="companion-panel panel"><p>${S.adventure.completed ? `“Hello, ${esc(S.kid||'Rider')}. Ready for our next little adventure?”` : `“I’m ${esc(S.pet.name||'Ember')}. Let’s discover this world together.”`}</p>
-        ${tricks.length ? `<div class="trick-buttons">${tricks.map(r=>`<button class="btn" data-act="trick" data-trick="${r.id}">${esc(r.name)}</button>`).join('')}</div>` : ''}
+      <div class="companion-panel panel"><p>${S.adventure.completed ? `“Hello, ${esc(S.kid||'Rider')}. Ready for our next adventure?”` : `“I’m ${esc(S.pet.name||'Ember')}. Let’s fly.”`}</p>
+        <div class="lair-say"><span>Type a word to play</span><b class="lair-typed"></b></div>
+        <div class="trick-buttons">${cmds.map(c => c.open ? `<button class="btn" data-act="trick" data-trick="${c.id}">${c.word}</button>` : `<button class="btn" disabled title="Finish more missions to learn this trick">? ? ?</button>`).join('')}</div>
         <small>${esc(Missions.rewardText(S.adventure.completed))}</small>
       </div>
       <div class="lair-actions">
@@ -3797,12 +3946,14 @@ App.register('den', {
       Sound.click();
       const cp = Store.getCheckpoint();
       if (cp) App.go('level', { id: cp.id, resume: true });
-      else { if (S.adventure.sessionCount >= 2) { S.adventure.sessionCount = 0; Store.save(); } App.go('briefing', { id: Store.nextLevel().id }); }
+      else {
+        if (S.adventure.sessionCount >= 2) { S.adventure.sessionCount = 0; Store.save(); }
+        const id = Store.nextLevel().id;
+        // the warm-up comes before the first flight of the day only
+        if (S.adventure.warmDay !== Store.today()) App.go('briefing', { id }); else App.go('level', { id, route: Missions.autoRoute(id) });
+      }
     }
-    else if (a === 'trick') {
-      if (!Missions.rewards(S.adventure.completed).some(r=>r.id===b.dataset.trick)) return;
-      this.trick=b.dataset.trick; this.trickTime=0; Sound.whoosh();
-    }
+    else if (a === 'trick') this.perform(b.dataset.trick);
     else if (a === 'map') { Sound.click(); App.go('map'); }
     else if (a === 'forge') { Sound.click(); Forge.open(() => { this.d.setLook(Object.assign(DragonViews.look({ dataset: {} }), { size: [1.8, 1.5, 1.3, 1.15][Store.stage()] })); this.render(); }); }
     else if (a === 'parent') { Sound.click(); App.go('parent'); }
@@ -3811,24 +3962,62 @@ App.register('den', {
       else { Sound.nope(); App.toast('Finish Moonlit Meadow to unlock Gem Storm'); }
     }
   },
+  /* words she can type in the lair, and what each makes the dragon do */
+  commands() {
+    const S = Store.get(), got = id => Missions.rewards(S.adventure.completed).some(r => r.id === id);
+    return [{ word: 'dash', id: 'dash', open: true }, { word: 'flash', id: 'flash', open: true }, { word: 'fire', id: 'fire', open: true },
+      { word: 'loop', id: 'loop', open: got('loop') }, { word: 'heart', id: 'heart', open: got('heart') }, { word: 'ribbon', id: 'eight', open: got('eight') },
+      { word: (S.pet.name || 'ember').toLowerCase(), id: 'name', open: true, secret: true }];
+  },
+  perform(id) {
+    const c = this.commands().find(x => x.id === id), d = this.d, h = d.head(), S = Store.get();
+    if (!c || !c.open) return;
+    if (id === 'fire') {
+      d.jawTarget = 1; Sound.fire();
+      let k = 0;
+      const iv = setInterval(() => { const q = d.mouth(); FX.fire(q.x, q.y, q.dx, q.dy, 1.3); if (++k > 16 || App.screen !== 'den') { clearInterval(iv); d.jawTarget = 0; } }, 45);
+    } else if (id === 'flash') {
+      Sound.levelUp(); FX.burst(h.x, h.y, { n: 40, speed: 520, size: 11, g: 0, colors: ['#ffffff', '#22e1ff', '#ff3df0', '#ffd98a'], ringGrow: 420 }); FX.confetti(50);
+    } else if (id === 'name') {
+      Sound.heal(); FX.text(h.x, h.y - 90, `Hi, ${S.kid || 'Rider'}!`, '#ffd98a', 32); FX.burst(h.x, h.y, { n: 16, speed: 240, g: -200, colors: ['#ff8fc1', '#ffffff'] });
+    } else { this.trick = id; this.trickTime = 0; Sound.whoosh(); }
+  },
+  key(e) {
+    if (e.key === 'Enter') { this.act('play'); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey || !/^[a-zA-Z]$/.test(e.key)) return;
+    this.buf = (this.buf + e.key.toLowerCase()).slice(-12);
+    Sound.key(this.buf.length, 0);
+    const hit = this.commands().find(c => c.open && this.buf.endsWith(c.word));
+    const out = $('.lair-typed', this.el);
+    if (out) { out.textContent = hit ? hit.word : this.buf; out.classList.toggle('hit', !!hit); }
+    clearTimeout(this.bufT); this.bufT = setTimeout(() => { this.buf = ''; const o = $('.lair-typed', this.el); if (o) { o.textContent = ''; o.classList.remove('hit'); } }, hit ? 1200 : 2600);
+    if (hit) { this.buf = ''; this.perform(hit.id); }
+  },
   tick(dt) {
     this.t += dt;
     const t = this.t, W = App.W;
+    if (this.trick === 'dash') {
+      this.trickTime += dt;
+      const u = Math.min(1, this.trickTime / 1.8);
+      this.d.boost = 5; this.d.update(dt, W * .53 + Math.sin(u * TAU) * W * .3, 290 + Math.sin(u * TAU * 2) * 26, 20, 70, 11);
+      if (u === 1) this.trick = null;
+      return;
+    }
     if (this.trick) {
       this.trickTime += dt;
       const u=Math.min(1,this.trickTime/5), a=u*Math.PI*2;
       let x,y;
-      if (this.trick==='heart') { x=W*.53+Math.pow(Math.sin(a),3)*125; y=325-(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a))*8; }
-      else if (this.trick==='eight') { x=W*.53+Math.sin(a)*160;y=330+Math.sin(a*2)*67; }
-      else { x=W*.53+Math.cos(a)*145;y=325+Math.sin(a)*100; }
+      if (this.trick==='heart') { x=W*.53+Math.pow(Math.sin(a),3)*125; y=285-(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a))*8; }
+      else if (this.trick==='eight') { x=W*.53+Math.sin(a)*160;y=290+Math.sin(a*2)*67; }
+      else { x=W*.53+Math.cos(a)*145;y=285+Math.sin(a)*100; }
       this.d.boost=2;this.d.update(dt,x,y,20,28,8);
       if(u===1)this.trick=null;
       return;
     }
     this.d.boost = 0.8;
-    this.d.update(dt, W * 0.56 + Math.sin(t * 0.55) * 80, 350 + Math.sin(t * 0.9) * 60 + Math.sin(t * 2.1) * 10, 120, 20, 7);
+    this.d.update(dt, W * 0.56 + Math.sin(t * 0.55) * 80, 300 + Math.sin(t * 0.9) * 50 + Math.sin(t * 2.1) * 10, 120, 20, 7);
   },
-  key(e) { if (e.key === 'Enter') this.act('play'); },
+  exit() { clearTimeout(this.bufT); },
   /* things she has not been told about yet: growth, and rewards from worlds finished in an older version */
   checkNews() {
     const S = Store.get(), st = Store.stage();
@@ -3975,14 +4164,14 @@ App.register('map', {
     if (!l || !Store.levelOpen(id)) return;
     const n = Store.worldLevels(l.world).indexOf(l) + 1;
     const checkpoint = Store.getCheckpoint(id);
-    const start = () => { Sound.click(); if(checkpoint) App.go('level', { id, resume:true }); else App.go('briefing', { id }); };
+    const start = () => { Sound.click(); if(checkpoint) App.go('level', { id, resume:true }); else App.go('level', { id, route: Missions.autoRoute(id) }); };
     App.modal(`<div class="modal lv-card"><button class="btn icon x" data-act="close" aria-label="Close">${ic('close')}</button>
       <div class="kicker">World ${l.world} · Level ${n}</div><h2>${esc(l.title)}</h2>
       ${LevelInfo.html(l)}
       ${rec && rec.plays ? `<div class="best">${[0, 1, 2].map(s => ic(s < (rec.stars || 0) ? 'star' : 'starOff')).join('')} best ${rec.bestAcc || 0}% · ${rec.bestWpm || 0} wpm</div>` : ''}
       ${Store.getCheckpoint() && !checkpoint ? '<p>Starting this lesson replaces your unfinished mission checkpoint. Completed levels stay saved.</p>' : ''}
-      <div class="row"><button class="btn primary big" data-act="start">${ic('play')} ${checkpoint ? 'Resume mission' : 'Choose mission'}</button>
-      ${rec && rec.stars && !checkpoint && Store.get().settings.difficulty !== 'calm' ? '<button class="btn" data-act="challenge">Optional battle</button>' : ''}</div></div>`,
+      <div class="row"><button class="btn primary big" data-act="start">${ic('play')} ${checkpoint ? 'Resume mission' : 'Start'}</button>
+      ${rec && rec.stars && !checkpoint && !BOSS_LEVELS.has(id) && Store.get().settings.difficulty !== 'calm' ? '<button class="btn" data-act="challenge">Optional battle</button>' : ''}</div></div>`,
     { dismiss: true, act: a => { if (a === 'start') start(); else if(a==='challenge' && rec && rec.stars){Sound.click();App.go('level',{id,challenge:true});} else App.closeModal(); }, key: e => { if (e.key === 'Enter' || e.key === ' ') start(); } });
   },
   key(e) {
@@ -4043,7 +4232,9 @@ App.register('level', {
     this.recovery = saved ? saved.recovery : recovery;
     this.attempt = saved ? saved.attempt : attempt;
     this.challenge = !this.recovery && Combat.on(idx, saved ? saved.challenge : challenge);
-    this.mission = Missions.get(id, this.route);
+    this.finale = this.challenge && BOSS_LEVELS.has(id);          // the last level of a world is a boss fight
+    this.mission = this.finale ? Missions.boss(id) : Missions.get(id, this.route);
+    this.resumed = !!saved;
     this.level = level; this.idx = idx; this.t = 0; this.doneT = 0; this.calm = false;
     Scene.setTheme(world.theme); Scene.setHorizon(-250); Scene.setSpeed(40);
     Sound.music(world.theme); Sound.setEnergy(0.1);
@@ -4054,7 +4245,7 @@ App.register('level', {
     const hues = { meadow: [170, 300, 60, 200], peaks: [190, 50, 320, 130], cave: [50, 185, 320, 95], castle: [45, 190, 330, 130], summit: [130, 190, 50, 320] }[world.theme];
     this.gemList = Array.from({ length: wordsTotal }, (_, i) => ({ D: (i + 1) * this.GAP, y: 196 + Math.sin(i * 1.9) * 44, hue: hues[i % hues.length] }));
     this.L = { lines, li: 0, pos: 0, wi: 0, err: false, total: lines.reduce((t, l) => t + l.length, 0), done: 0, first: 0, errors: 0,
-      streak: 0, best: 0, activeMs: 0, lastT: 0, phase: 'intro', gemsGot: 0, wordsDone: 0, wordsTotal, note: 0, kps: 0, d: 0, heat: 0, idle: 0, missed: {}, segments: [] };
+      streak: 0, best: 0, activeMs: 0, lastT: 0, phase: 'intro', gemsGot: 0, wordsDone: 0, wordsTotal, note: 0, kps: 0, d: 0, heat: 0, idle: 0, missed: {}, segments: [], marks: [] };
     if (saved) {
       Object.assign(this.L, saved.progress, LessonRun.position(lines, saved.progress.li, saved.progress.pos));
       this.L.gemsGot = this.L.wordsDone; this.L.d = this.L.wordsDone * this.GAP;
@@ -4064,21 +4255,20 @@ App.register('level', {
     const n = Store.worldLevels(level.world).indexOf(level) + 1;
     const fight = this.challenge, foe = FOE_INFO[world.theme];
     const tip = fight
-      ? (BOSS_LEVELS.has(level.id) ? `<b>Boss: ${foe.boss}.</b> Every word you finish hurts it.` : `<b>${foe.name}</b> ride the words. Finish a word to destroy its enemy.`)
-        + ` Two different slips on one word let it strike.${(saved && saved.combat ? saved.combat.fierce : S.settings.difficulty === 'fierce') ? ' Fierce also has a word timer.' : ''} Full mana? Press <b>Enter</b> for a power.`
+      ? (BOSS_LEVELS.has(level.id) ? '' : `<b>${foe.name}</b> ride the words. Finish a word to destroy its enemy.`)
+        + `Two different slips on one word let ${BOSS_LEVELS.has(level.id) ? 'the boss' : 'an enemy'} strike, but stars only count accuracy.${(saved && saved.combat ? saved.combat.fierce : S.settings.difficulty === 'fierce') ? ' Fierce also has a word timer.' : ''} Full mana? Press <b>Enter</b> for a power.`
       : this.recovery ? 'A short practice for the keys that need another try. Reach <b>90% accuracy</b> to earn one star and continue.'
       : 'No timer and no attacks. Feel the bumps on <b>F</b> and <b>J</b>. Follow the finger guide, one key at a time.';
     el.innerHTML = `<div class="edge"></div><div class="lv-progress"><i></i></div>
       <div class="lv-top">
         <button class="btn icon" data-act="pause" aria-label="Pause">${ic('pause')}</button>
-        <div class="hud-title">${esc(level.title)}<small>World ${level.world} · Level ${n} · ${this.recovery ? 'Focused practice' : fight ? 'Optional battle' : 'Learning flight'}</small></div>
+        <div class="hud-title">${esc(level.title)}<small>World ${level.world} · Level ${n} · ${this.recovery ? 'Focused practice' : this.finale ? 'World finale' : fight ? 'Optional battle' : 'Learning flight'}</small></div>
         <div style="flex:1"></div>
         <div class="chip acc" title="Accuracy"><small>acc</small><span>100%</span></div>
         <div class="chip streak" title="Right keys in a row">${ic('flame')}<span>0</span></div>
         <div class="chip gems" title="Shards">${ic('shard')}<span>0</span></div>
         ${App.sysButtons()}
       </div>
-      <div class="mission-status"><strong>${esc(this.mission.title)}</strong><span>${esc(this.mission.goal)}</span></div>
       <div class="flow"><span>Flow</span><div><i></i></div></div>
       <div class="lv-col">
         <div class="prompt panel"><div class="next-line"></div></div>
@@ -4086,18 +4276,24 @@ App.register('level', {
       </div>
       <div class="lv-banner"><div class="kicker">${saved ? 'Your flight is saved' : this.recovery ? 'Try just the tricky parts' : 'Your mission'}</div><h2>${esc(this.mission.title)}</h2><p>${esc(this.mission.goal)}</p>
         <p>${tip}</p>
+        ${!saved && !this.recovery && !fight ? `<button class="btn small swap" data-act="swap">${ic('retry')} Swap story (Tab)</button>` : ''}
         <div class="go">Press <span class="keycap">SPACE</span> to ${saved ? 'resume' : 'start'}</div></div>`;
     this.prompt = $('.prompt', el); this.nextEl = $('.next-line', el); this.flowEl = $('.flow i', el);
     this.kb = Keyboard.create(el);
     this.kb.setLearned(Content.keysUpTo(idx));
-    this.kb.setMemoryHints(S.settings.memoryHints && Store.levelStars(id) > 0 && !this.recovery);
-    el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && b.dataset.act === 'pause') this.pause(); });
+    el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && b.dataset.act === 'pause') this.pause(); else if (b && b.dataset.act === 'swap') this.swap(); });
     el.classList.add('intro');
     this.d = App.myDragon(); this.d.place(this.hx(), 200);
     this.C = fight ? new Combat(this) : null;
     if (this.C && saved && saved.combat) this.C.restore(saved.combat);
     if (this.C && this.C.boss) Sound.music('boss');
-    Scene.onDraw = ctx => { Missions.draw(ctx, this.mission, this.L.done / this.L.total, this.t); if (this.C) this.C.draw(ctx, 'back'); this.d.draw(ctx); if (this.C) this.C.draw(ctx, 'front'); };
+    const best = S.levels[id] && S.levels[id].ghost;
+    this.ghost = best && !this.recovery ? { marks: best, x: this.hx(), y: 150 } : null;
+    Scene.onDraw = ctx => {
+      if (!this.C) Missions.draw(ctx, this.mission, { done: this.L.wordsDone, total: this.L.wordsTotal, t: this.t, finale: this.L.phase === 'done' ? this.doneT : -1 });
+      this.drawGhost(ctx);
+      if (this.C) this.C.draw(ctx, 'back'); this.d.draw(ctx); if (this.C) this.C.draw(ctx, 'front');
+    };
     this.onVisibility = () => { if (document.hidden && this.L.phase === 'play') { this.checkpoint(); if (!App.hasModal) this.pause(true); } };
     this.onPageLeave = () => this.checkpoint();
     document.addEventListener('visibilitychange', this.onVisibility);
@@ -4107,6 +4303,40 @@ App.register('level', {
     this.tick(0);
   },
   hx() { return App.W / 2 - 250; },
+
+  /* Point the keyboard guide at the next key. Keys she already hits reliably stay quiet. */
+  aim() {
+    const L = this.L, ch = L.lines[L.li][L.pos], S = Store.get();
+    this.kb.target(ch, !S.settings.alwaysHints && !this.recovery && Store.mastered(ch));
+  },
+  /* the other story for the same lesson */
+  swap() { Sound.pop(); App.go('level', { id: this.level.id, route: 1 - this.route }); },
+
+  /* How far through the level her best run was after this many seconds of typing */
+  ghostFrac(secs) {
+    const m = this.ghost.marks;
+    for (let i = 0; i < 20; i++) if (secs < m[i]) { const t0 = i ? m[i - 1] : 0; return (i + (secs - t0) / Math.max(0.05, m[i] - t0)) / 20; }
+    return 1;
+  },
+  /* A faint dragon that flies her best run again. Ahead of her means she is behind her best. */
+  drawGhost(ctx) {
+    const g = this.ghost, L = this.L;
+    if (!g || L.phase !== 'play' || this.resumed) return;
+    const secs = (L.activeMs + (L.lastT ? Math.min(performance.now() - L.lastT, 4000) : 0)) / 1000;
+    const lead = this.ghostFrac(secs) - L.done / L.total, h = this.d.head();
+    const tx = h.x + clamp(lead * 1500, -330, 560), ty = 132 + Math.sin(this.t * 1.7) * 16;
+    g.x += (tx - g.x) * 0.08; g.y += (ty - g.y) * 0.08;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.globalAlpha = 0.34;
+    ctx.strokeStyle = '#cfe0ff'; ctx.lineWidth = 9; ctx.beginPath();
+    for (let i = 0; i <= 14; i++) { const u = i / 14, x = g.x - u * 150, y = g.y + Math.sin(this.t * 5 - u * 5) * 9 * u; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+    ctx.stroke();
+    ctx.fillStyle = '#e6eeff'; ctx.beginPath(); ctx.moveTo(g.x + 30, g.y + 2); ctx.lineTo(g.x - 4, g.y - 12); ctx.lineTo(g.x - 10, g.y + 10); ctx.closePath(); ctx.fill();
+    const flap = Math.sin(this.t * 9) * 22;
+    ctx.beginPath(); ctx.moveTo(g.x - 34, g.y - 2); ctx.lineTo(g.x - 52, g.y - 30 - flap); ctx.lineTo(g.x - 84, g.y - 12 - flap * 0.5); ctx.lineTo(g.x - 60, g.y + 2); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.7; ctx.fillStyle = '#cfe0ff'; ctx.font = '700 10px "Exo 2", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('YOUR BEST', g.x - 40, g.y - 26 - Math.max(0, flap));
+    ctx.restore();
+  },
 
   renderLine(aim = true) {
     const L = this.L, line = L.lines[L.li];
@@ -4120,7 +4350,7 @@ App.register('level', {
     this.caret.style.transform = `translateX(${L.pos * this.CH}px)`;
     const next = L.lines[L.li + 1];
     this.nextEl.innerHTML = next ? `<small>Next</small>${esc(next)}` : '<small>Last line</small>';
-    if (aim) this.kb.target(line[L.pos]);
+    if (aim) this.aim();
   },
 
   start() {
@@ -4128,13 +4358,17 @@ App.register('level', {
     this.el.classList.remove('intro');
     this.L.phase = 'play'; Sound.whoosh();
     this.L.lastT = 0;
-    this.kb.target(this.L.lines[this.L.li][this.L.pos]);
+    this.aim();
     this.checkpoint();
   },
 
   key(e) {
     const L = this.L;
-    if (L.phase === 'intro') { if (e.key === ' ' || e.key === 'Enter') this.start(); else if (e.key === 'Escape') this.pause(); return; }
+    if (L.phase === 'intro') {
+      if (e.key === ' ' || e.key === 'Enter') this.start(); else if (e.key === 'Escape') this.pause();
+      else if (e.key === 'Tab' && $('.swap', this.el)) this.swap();
+      return;
+    }
     if (L.phase !== 'play') return;
     if (this.C && this.C.handleKey(e)) return;
     if (e.key === 'Escape') { this.pause(); return; }
@@ -4161,6 +4395,7 @@ App.register('level', {
     tile.classList.remove('cur', 'err'); tile.classList.add('done'); if (L.err) tile.classList.add('slip');
     if (!L.err) { L.first++; Store.noteKey(exp, true); }
     L.err = false; L.done++; L.streak++; L.best = Math.max(L.best, L.streak);
+    for (const upTo = Math.floor(L.done / L.total * 20); L.marks.length < upTo;) L.marks.push(+(L.activeMs / 1000).toFixed(1));   // pace, for the ghost
     L.kps += 1; this.d.vy -= 55;
     L.heat = Math.min(1, L.heat + 0.013 + (L.streak > 20 ? 0.005 : 0));
     Sound.key(L.note++, L.streak);
@@ -4178,7 +4413,7 @@ App.register('level', {
     } else {
       this.tiles[L.pos].classList.add('cur');
       this.caret.style.transform = `translateX(${L.pos * this.CH}px)`;
-      this.kb.target(L.lines[L.li][L.pos]);
+      this.aim();
     }
     this.updateHud();
     if (L.done % 8 === 0) this.checkpoint();
@@ -4214,6 +4449,8 @@ App.register('level', {
       Sound.gem();
     }
     L.wordsDone++; L.gemsGot++; L.wi++; L.note = 0;
+    const piece = this.C ? null : Missions.spot(this.mission, L.wordsDone, L.wordsTotal);   // the dragon lights the next piece of the scene
+    if (piece) { FX.beam(m, piece, '#ffd98a', 2.5); FX.burst(piece.x, piece.y, { n: 8, speed: 170, size: 6, g: -60, ring: false, colors: ['#ffd98a', '#9dffe0', '#ffffff'] }); }
     const chip = $('.chip.gems', this.el);
     chip.classList.remove('bump'); void chip.offsetWidth; chip.classList.add('bump');
   },
@@ -4285,7 +4522,7 @@ App.register('level', {
     for (let i = L.wordsDone; i < Math.min(this.gemList.length, L.wordsDone + 7); i++) {
       const g = this.gemList[i], x = hx + 56 + (g.D - L.d);
       if (x > App.W + 60) break;
-      if (this.C && this.C.hides(i)) continue;
+      if (this.C ? this.C.hides(i) : !this.recovery) continue;
       Scene.gems.push({ x, y: g.y, hue: g.hue, s: 1.1, a: done ? 0 : 1, phase: i });
     }
     if (h.y < 96) { h.y = 96; d.vy = Math.max(0, d.vy); }
@@ -4314,7 +4551,7 @@ App.register('level', {
     if (this.C) this.C.closeCast();
     this.checkpoint(); this.kb.clear();
     L.lastT = 0; if (!quiet) Sound.click();
-    const resume = () => { L.lastT = 0; if (L.phase === 'play') this.kb.target(L.lines[L.li][L.pos]); };
+    const resume = () => { L.lastT = 0; if (L.phase === 'play') this.aim(); };
     App.modal(`<div class="modal"><button class="btn icon x" data-act="resume" aria-label="Close">${ic('close')}</button><div class="kicker">Paused</div><h2>Take a breath</h2><p>${Store.isMemoryOnly() ? 'This browser cannot save to disk. Keep this tab open, or export a backup from Parent settings.' : 'Your place is saved in this browser. Your dragon will wait.'}</p>
       <div class="row"><button class="btn" data-act="den">${ic('home')} Save & rest</button><button class="btn" data-act="again">${ic('retry')} Restart</button>
       <button class="btn primary" data-act="resume">${ic('play')} Resume</button></div></div>`,
@@ -4343,6 +4580,13 @@ App.register('level', {
       if (stars) rec.bestWpm = Math.max(rec.bestWpm, wpm);
     } else rec.recoveryAcc = Math.max(rec.recoveryAcc || 0, pct);
     rec.stars = Math.max(rec.stars, stars);
+    // keep the pace of her quickest passing run, and say how this one compared
+    let ghostGap = null;
+    if (!this.recovery && stars && !this.resumed && L.marks.length >= 20) {
+      const time = L.marks[19], old = rec.ghost ? rec.ghost[19] : null;
+      if (old == null || time < old) rec.ghost = L.marks.slice(0, 20);
+      if (old != null) ghostGap = +(old - time).toFixed(1);
+    }
 
     const notes = [];
     let coins = 0;
@@ -4387,7 +4631,7 @@ App.register('level', {
         lines: this.repairLines, progress: { li: 0, pos: 0, err: false, first: 0, errors: 0, streak: 0, best: 0, activeMs: 0, missed: {}, segments: [] }, combat: null });
     }
     Store.save();
-    App.later(() => this.results({ pct, wpm, stars, coins, notes, newBest, events, fight }), 1500);
+    App.later(() => this.results({ pct, wpm, stars, coins, notes, newBest, events, fight, ghostGap }), this.C || this.recovery ? 1500 : 2500);
   },
 
   results(r) {
@@ -4395,30 +4639,34 @@ App.register('level', {
     const speed = SPEED_NAMES.filter(([n]) => r.wpm >= n).pop()[1];
     const f = r.fight, title = this.recovery && pass ? 'You worked it out' : r.pct === 100 ? 'Flawless' : r.stars === 3 ? 'Brilliant flying' : r.stars === 2 ? 'Great flying' : r.stars === 1 ? 'Mission complete' : 'Let’s try the tricky keys';
     const readyToRest = pass && Store.get().adventure.sessionCount >= 2;
-    const fourth = !f ? `<b>${L.gemsGot}</b><span>shards caught</span>`
+    const fourth = !f ? `<b>${L.gemsGot}</b><span>words finished</span>`
       : f.boss ? `<b>${f.bossBeaten ? 'Won' : 'Lost'}</b><span>${esc(f.boss)}<br>${f.hits} ${f.hits === 1 ? 'hit' : 'hits'} taken</span>`
       : `<b>${f.kills}</b><span>enemies beaten<br>${f.hits} ${f.hits === 1 ? 'hit' : 'hits'} taken</span>`;
+    // at most two short extra lines, most interesting first
+    const extras = [], count = Store.get().adventure.completed, latest = Missions.rewards(count).at(-1);
+    if (pass && latest && latest.at === count) extras.push(esc(latest.text));
+    if (pass && r.ghostGap != null) extras.push(r.ghostGap > 0 ? `<b>${r.ghostGap} seconds quicker</b> than your best run` : r.ghostGap < 0 ? `Your best run is still ${-r.ghostGap} seconds ahead` : 'You matched your best run exactly');
+    if (readyToRest) extras.push('Two missions done. A good place to rest your hands.');
+    if (pass && f && f.downed) extras.push('Battle damage never costs stars.');
     const continueSession = () => { if (readyToRest) { Store.get().adventure.sessionCount = 0; Store.save(); } };
     const goNext = () => {
       const ev = r.events.shift();
       if (ev) { Celebrate[ev.type](ev, goNext); return; }
       continueSession();
       if (!next) App.go('den');
-      else App.go('briefing', { id: next.id, skipWarmup: true });
+      else App.go('level', { id: next.id, route: Missions.autoRoute(next.id) });
     };
-    const again = () => { const ev = r.events.shift(); if (ev) { Celebrate[ev.type](ev, again); return; } continueSession(); App.go('briefing', { id: level.id, skipWarmup: true }); };
+    const again = () => { const ev = r.events.shift(); if (ev) { Celebrate[ev.type](ev, again); return; } continueSession(); App.go('level', { id: level.id, route: Missions.autoRoute(level.id) }); };
     const battle = () => { const ev = r.events.shift(); if (ev) { Celebrate[ev.type](ev, battle); return; } continueSession(); App.go('level', { id: level.id, route: this.route, challenge: true }); };
     const repair = () => App.go('level', { id: level.id, resume: true });
     const rest = () => { const ev = r.events.shift(); if (ev) { Celebrate[ev.type](ev, rest); return; } Store.get().adventure.sessionCount = 0; Store.save(); App.go('den'); };
     const toMap = () => { const ev = r.events.shift(); if (ev) { Celebrate[ev.type](ev, toMap); return; } App.go('map', { world: level.world }); };
     const wrap = App.modal(`<div class="modal result"><div class="kicker">${esc(level.title)}</div><h2>${title}${r.newBest ? '<span class="badge-new">NEW BEST</span>' : ''}</h2>
       <div class="stars">${[0, 1, 2].map(i => `<div class="slot">${ic('starOff')}${i < r.stars ? ic('star', 'won') : ''}</div>`).join('')}</div>
-      <p class="mission-story">${esc(pass ? this.mission.success : 'Your mission progress is safe. Practice just the keys that were tricky, then continue.')}</p>
+      <p class="mission-story">${esc(pass ? (this.finale && f && !f.bossBeaten ? this.mission.lost : this.mission.success) : 'Your mission progress is safe. Practice just the keys that were tricky, then continue.')}</p>
       ${pass ? '' : `<p>You reached <b>${r.pct}%</b>. This short retry needs 90% to earn one star.<br>No need to repeat the whole mission.</p>`}
       ${this.recovery && pass ? `<p>One star for <b>${r.pct}% on your focused retry</b>. Your full mission was ${this.attempt.originalPct}%. Replay the full mission any time for two or three stars.</p>` : ''}
-      ${pass && f && f.downed ? '<p>Your dragon is safe. Battle damage does not reduce your accuracy stars.</p>' : ''}
-      ${readyToRest ? '<p><b>Two missions complete.</b> Your adventure is saved. This is a good place to rest your hands.</p>' : ''}
-      ${pass ? `<p class="adventure-reward">${esc(Missions.rewardText(Store.get().adventure.completed))}</p>` : ''}
+      ${extras.length ? `<p class="result-notes">${extras.slice(0, 2).join('<br>')}</p>` : ''}
       <div class="stats">
         <div class="stat ${r.pct >= 90 ? 'good' : ''}"><b>${r.pct}%</b><span>accuracy</span></div>
         <div class="stat"><b>${r.wpm}</b><span>words a minute<br>${speed}</span></div>
@@ -4427,9 +4675,9 @@ App.register('level', {
       </div>
       <div class="earn">${ic('shard')} +<span class="earn-n">0</span>${r.notes.length ? `<small>${esc(r.notes.join(', '))}</small>` : ''}</div>
       <div class="row">
-        <button class="btn" data-act="map">${ic('map')} Map</button>
+        <button class="btn icon" data-act="map" title="Map" aria-label="Map">${ic('map')}</button>
         ${pass ? `<button class="btn" data-act="again">${ic('retry')} Replay</button>
-          ${!this.challenge && Store.get().settings.difficulty !== 'calm' ? `<button class="btn" data-act="challenge">${ic('bolt')} Optional battle</button>` : ''}
+          ${!this.challenge && Store.get().settings.difficulty !== 'calm' ? `<button class="btn" data-act="challenge">${ic('bolt')} Battle</button>` : ''}
           <button class="btn ${readyToRest ? '' : 'primary'}" data-act="next">${next ? 'Next mission' : 'Visit den'} ${ic('next')}</button>
           ${readyToRest ? '<button class="btn primary" data-act="rest">Save & rest</button>' : ''}`
           : `<button class="btn primary big" data-act="repair">${ic('retry')} Practice tricky keys</button>`}
@@ -4710,8 +4958,8 @@ App.register('parent', {
           <label><input type="checkbox" data-set="music" ${S.settings.music ? 'checked' : ''}> Music</label>
           <label><input type="checkbox" data-set="sound" ${S.settings.sound ? 'checked' : ''}> Sound effects</label>
           <label><input type="checkbox" data-set="unlockAll" ${S.settings.unlockAll ? 'checked' : ''}> Unlock every level</label>
-          <label><input type="checkbox" data-set="memoryHints" ${S.settings.memoryHints ? 'checked' : ''}> Try remembered keys first</label>
-          <p style="margin:0;font-size:13px">On passed lessons only, finger hints appear after a pause. F and J stay visible, and help is always available.</p>
+          <label><input type="checkbox" data-set="alwaysHints" ${S.settings.alwaysHints ? 'checked' : ''}> Always show finger hints</label>
+          <p style="margin:0;font-size:13px">Hints fade on their own for each key she hits reliably, and return if she pauses or slips. Tick this to keep them on.</p>
           <label>Challenge difficulty <select data-set="difficulty">${Object.keys(DIFFICULTY).map(k => `<option value="${k}" ${S.settings.difficulty === k ? 'selected' : ''}>${DIFFICULTY[k].name}</option>`).join('')}</select></label>
           <label>Child <input class="text" data-set="kid" maxlength="10" value="${esc(S.kid)}"></label>
           <label>Dragon <input class="text" data-set="pet" maxlength="10" value="${esc(S.pet.name)}"></label>
@@ -4742,7 +4990,7 @@ App.register('parent', {
     if (k === 'sound') { S.settings.sound = t.checked; Sound.setOn(t.checked); }
     else if (k === 'music') { S.settings.music = t.checked; Sound.setMusic(t.checked); }
     else if (k === 'unlockAll') S.settings.unlockAll = t.checked;
-    else if (k === 'memoryHints') S.settings.memoryHints = t.checked;
+    else if (k === 'alwaysHints') S.settings.alwaysHints = t.checked;
     else if (k === 'difficulty') S.settings.difficulty = t.value;
     else if (k === 'kid') { S.kid = cleanName(t.value, S.kid); t.value = S.kid; }
     else if (k === 'pet') { S.pet.name = cleanName(t.value, S.pet.name); t.value = S.pet.name; }

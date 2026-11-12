@@ -18,9 +18,9 @@ const FOE_INFO = {
 const EMBER_SKIN = { a: '#ff7a3d', b: '#7a1030', fin: '#ffd23f', belly: '#ffd9b0', glow: '255,110,60' };
 const ASHEN_SKIN = { a: '#ff3d5a', b: '#1a0612', fin: '#ff9a3d', belly: '#ffb0a0', glow: '255,60,80' };
 const DIFFICULTY = {
-  calm:   { name: 'Calm',   text: 'No enemies. Just you, the keys and the music.' },
-  normal: { name: 'Normal', text: 'Optional battles on completed lessons. Two different slips in one word let an enemy strike. No timer.' },
-  fierce: { name: 'Fierce', text: 'Optional battles on completed lessons, with a word timer. Pays 25% more shards. Learning flights stay gentle.' },
+  calm:   { name: 'Calm',   text: 'No enemies and no bosses. Just the missions.' },
+  normal: { name: 'Normal', text: 'Each world ends with a boss. Other battles are optional on finished lessons. No timer.' },
+  fierce: { name: 'Fierce', text: 'As Normal, but enemies and bosses also strike if a word takes too long. Pays 25% more shards.' },
 };
 
 /* ---------------- how each enemy is drawn (all face left, toward the dragon) ---------------- */
@@ -97,7 +97,9 @@ class Combat {
   /* is there fighting on this level, given the difficulty she chose? */
   static on(idx, challenge = false) {
     const d = Store.get().settings.difficulty;
-    return !!challenge && !!LEVELS[idx] && Store.levelStars(LEVELS[idx].id) > 0 && d !== 'calm';
+    if (d === 'calm' || !LEVELS[idx]) return false;
+    if (BOSS_LEVELS.has(LEVELS[idx].id)) return true;            // the last level of a world is always its boss
+    return !!challenge && Store.levelStars(LEVELS[idx].id) > 0;  // other battles are an optional replay
   }
   static moves() {
     const S = Store.get();
@@ -316,7 +318,7 @@ class Combat {
     this.cast = null; if (this.castEl) { this.castEl.remove(); this.castEl = null; }
     Scene.slowmo = false; this.lv.el.classList.remove('casting');
     const L = this.lv.L; L.lastT = 0;
-    if (L.phase === 'play') this.lv.kb.target(L.lines[L.li][L.pos]);
+    if (L.phase === 'play') this.lv.aim();
     this.hud();
   }
   fizzle(e) {

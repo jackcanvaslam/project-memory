@@ -417,3 +417,16 @@ input.text:focus { border-color: var(--cyan); outline: none; box-shadow: 0 0 22p
 .lv-banner h2 {font-size:26px}
 .lv-banner p {font-size:15px;margin-top:6px}
 @media (prefers-reduced-motion:reduce){.mission-choice{transition:none}.mission-choice:hover{transform:none}}
+
+/* ---------- typing words in the lair, and the story swap ---------- */
+.lair-say { display: flex; align-items: center; justify-content: center; gap: 12px; height: 34px; margin: -2px 0 10px; }
+.lair-say span { font-size: 10px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); }
+.lair-typed { min-width: 150px; height: 32px; padding: 0 12px; border-radius: 8px; background: rgba(255, 255, 255, .06); border: 1px solid var(--line); font: 700 20px/30px var(--mono); letter-spacing: 3px; color: #fff; text-align: left; }
+.lair-typed.hit { color: #050818; background: #9dffe0; border-color: #fff; box-shadow: 0 0 20px #9dffe0; }
+.companion-panel .trick-buttons .btn { text-transform: none; letter-spacing: 2px; font: 700 14px var(--mono); }
+.lv-banner .swap { margin-top: 12px; }
+.result-notes { margin: 2px 0 10px !important; font-size: 15px !important; line-height: 1.55 !important; color: #cfe6f0 !important; }
+.result-notes b { color: #9dffe0; }
+.modal.result { width: 760px; }
+.modal.result .row { flex-wrap: nowrap; gap: 10px; }
+.modal.result .row .btn { flex: none; }

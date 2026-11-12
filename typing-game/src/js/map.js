@@ -75,14 +75,14 @@ App.register('map', {
     if (!l || !Store.levelOpen(id)) return;
     const n = Store.worldLevels(l.world).indexOf(l) + 1;
     const checkpoint = Store.getCheckpoint(id);
-    const start = () => { Sound.click(); if(checkpoint) App.go('level', { id, resume:true }); else App.go('briefing', { id }); };
+    const start = () => { Sound.click(); if(checkpoint) App.go('level', { id, resume:true }); else App.go('level', { id, route: Missions.autoRoute(id) }); };
     App.modal(`<div class="modal lv-card"><button class="btn icon x" data-act="close" aria-label="Close">${ic('close')}</button>
       <div class="kicker">World ${l.world} · Level ${n}</div><h2>${esc(l.title)}</h2>
       ${LevelInfo.html(l)}
       ${rec && rec.plays ? `<div class="best">${[0, 1, 2].map(s => ic(s < (rec.stars || 0) ? 'star' : 'starOff')).join('')} best ${rec.bestAcc || 0}% · ${rec.bestWpm || 0} wpm</div>` : ''}
       ${Store.getCheckpoint() && !checkpoint ? '<p>Starting this lesson replaces your unfinished mission checkpoint. Completed levels stay saved.</p>' : ''}
-      <div class="row"><button class="btn primary big" data-act="start">${ic('play')} ${checkpoint ? 'Resume mission' : 'Choose mission'}</button>
-      ${rec && rec.stars && !checkpoint && Store.get().settings.difficulty !== 'calm' ? '<button class="btn" data-act="challenge">Optional battle</button>' : ''}</div></div>`,
+      <div class="row"><button class="btn primary big" data-act="start">${ic('play')} ${checkpoint ? 'Resume mission' : 'Start'}</button>
+      ${rec && rec.stars && !checkpoint && !BOSS_LEVELS.has(id) && Store.get().settings.difficulty !== 'calm' ? '<button class="btn" data-act="challenge">Optional battle</button>' : ''}</div></div>`,
     { dismiss: true, act: a => { if (a === 'start') start(); else if(a==='challenge' && rec && rec.stars){Sound.click();App.go('level',{id,challenge:true});} else App.closeModal(); }, key: e => { if (e.key === 'Enter' || e.key === ' ') start(); } });
   },
   key(e) {
